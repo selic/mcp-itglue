@@ -60,27 +60,29 @@ export function loadConfig(
   argv: string[] = process.argv.slice(2),
   env: NodeJS.ProcessEnv = process.env
 ): ServerConfig {
-  const transport = (flagValue(argv, "--transport") ?? env.TRANSPORT ?? "stdio") as Transport;
+  // `||` throughout: MCPB/desktop hosts pass unset optional user_config
+  // fields as empty strings, which must fall through to the defaults.
+  const transport = (flagValue(argv, "--transport") || env.TRANSPORT || "stdio") as Transport;
   if (transport !== "stdio" && transport !== "http") {
     throw new ConfigError(`Invalid transport "${transport}" — expected "stdio" or "http"`);
   }
 
-  const portRaw = flagValue(argv, "--port") ?? env.PORT ?? "3000";
+  const portRaw = flagValue(argv, "--port") || env.PORT || "3000";
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new ConfigError(`Invalid port "${portRaw}"`);
   }
 
-  const region = (flagValue(argv, "--region") ?? env.ITGLUE_REGION ?? "us").toLowerCase();
+  const region = (flagValue(argv, "--region") || env.ITGLUE_REGION || "us").toLowerCase();
   const regionUrl = REGION_BASE_URLS[region];
   if (!regionUrl) {
     throw new ConfigError(
       `Unknown IT Glue region "${region}" — expected one of: ${Object.keys(REGION_BASE_URLS).join(", ")}`
     );
   }
-  const baseUrl = flagValue(argv, "--base-url") ?? env.ITGLUE_BASE_URL ?? regionUrl;
+  const baseUrl = flagValue(argv, "--base-url") || env.ITGLUE_BASE_URL || regionUrl;
 
-  const clientKeyMode = (env.CLIENT_ITGLUE_KEYS ?? "with-token") as ClientKeyMode;
+  const clientKeyMode = (env.CLIENT_ITGLUE_KEYS || "with-token") as ClientKeyMode;
   if (!CLIENT_KEY_MODES.includes(clientKeyMode)) {
     throw new ConfigError(
       `Invalid CLIENT_ITGLUE_KEYS "${clientKeyMode}" — expected one of: ${CLIENT_KEY_MODES.join(", ")}`

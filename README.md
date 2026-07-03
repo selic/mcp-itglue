@@ -1,5 +1,8 @@
 # mcp-itglue
 
+[![npm version](https://img.shields.io/npm/v/mcp-itglue)](https://www.npmjs.com/package/mcp-itglue)
+[![license: MIT](https://img.shields.io/npm/l/mcp-itglue)](LICENSE)
+
 An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for the [IT Glue](https://www.itglue.com/) API, built for MSPs that want AI assistants to read — and safely write — their documentation.
 
 - **Documents & sections** — list, read, create, update, publish, delete
@@ -10,28 +13,67 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for th
 - **Index freshness** — IT Glue webhook, post-write self-refresh, and a manual refresh endpoint
 - **Transports** — stdio for local use, streamable HTTP for shared deployments; Docker image included
 
-## Quick start (local, stdio)
+## Installation
 
-```bash
-npm install && npm run build
-ITGLUE_API_KEY=ITG.xxxx node dist/index.js
-```
+You need an IT Glue API key (IT Glue → Account → Settings → API Keys). Non-US accounts set `ITGLUE_REGION` to `eu` or `au`.
 
-Claude Desktop / Claude Code config:
+### npx (recommended)
+
+Claude Desktop (`claude_desktop_config.json`) or Claude Code (`.mcp.json`):
 
 ```json
 {
   "mcpServers": {
     "itglue": {
-      "command": "node",
-      "args": ["/path/to/mcp-itglue/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "mcp-itglue"],
       "env": { "ITGLUE_API_KEY": "ITG.xxxx" }
     }
   }
 }
 ```
 
+Claude Code one-liner:
+
+```bash
+claude mcp add itglue --env ITGLUE_API_KEY=ITG.xxxx -- npx -y mcp-itglue
+```
+
+Claude Desktop users can instead grab `mcp-itglue.mcpb` from the [latest release](https://github.com/selic/mcp-itglue/releases/latest) — open it with Claude Desktop and fill in the API key when prompted.
+
 stdio always runs with the full tool surface — it is a local, single-user transport using your own key.
+
+### Docker
+
+The container image defaults to the HTTP transport (for [shared deployments](#http-deployment)):
+
+```bash
+docker run --rm -p 3000:3000 \
+  -e ITGLUE_API_KEY=ITG.xxxx \
+  ghcr.io/selic/mcp-itglue
+```
+
+For local stdio use under Docker:
+
+```json
+{
+  "mcpServers": {
+    "itglue": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "-e", "ITGLUE_API_KEY", "ghcr.io/selic/mcp-itglue", "--transport", "stdio"],
+      "env": { "ITGLUE_API_KEY": "ITG.xxxx" }
+    }
+  }
+}
+```
+
+### From source
+
+```bash
+git clone https://github.com/selic/mcp-itglue.git && cd mcp-itglue
+npm install && npm run build
+ITGLUE_API_KEY=ITG.xxxx node dist/index.js
+```
 
 ## HTTP deployment
 
@@ -40,16 +82,15 @@ ITGLUE_API_KEY=ITG.xxxx \
 MCP_TOKENS_VIEWER="alice:$(openssl rand -hex 32)" \
 MCP_TOKENS_EDITOR="automation:$(openssl rand -hex 32)" \
 MCP_TOKENS_ADMIN="ops:$(openssl rand -hex 32)" \
-node dist/index.js --transport http --port 3000
+npx -y mcp-itglue --transport http --port 3000
 ```
 
 Or with Docker:
 
 ```bash
-docker build -t mcp-itglue .
 docker run --rm -p 3000:3000 \
   -e ITGLUE_API_KEY -e MCP_TOKENS_VIEWER -e MCP_TOKENS_EDITOR -e MCP_TOKENS_ADMIN \
-  mcp-itglue
+  ghcr.io/selic/mcp-itglue
 ```
 
 Endpoints:

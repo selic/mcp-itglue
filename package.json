@@ -1,6 +1,7 @@
 {
   "name": "mcp-itglue",
   "version": "0.1.1",
+  "mcpName": "io.github.selic/mcp-itglue",
   "description": "MCP server for the IT Glue API — documents, flexible assets, semantic vector search, role-based access control, and bring-your-own-key support",
   "type": "module",
   "main": "dist/index.js",
@@ -14,15 +15,18 @@
   ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "start:http": "node dist/index.js --transport http",
     "dev": "tsx src/index.ts",
     "dev:http": "tsx src/index.ts --transport http",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bundle": "npm run build && node scripts/bundle.mjs"
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "itglue",
     "it-glue",
@@ -35,6 +39,14 @@
     "node": ">=20"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selic/mcp-itglue.git"
+  },
+  "homepage": "https://github.com/selic/mcp-itglue#readme",
+  "bugs": {
+    "url": "https://github.com/selic/mcp-itglue/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
