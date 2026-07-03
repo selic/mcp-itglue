@@ -71,7 +71,8 @@ export function loadTokenEntries(env: NodeJS.ProcessEnv = process.env): TokenEnt
   });
 }
 
-function constantTimeEquals(a: string, b: string): boolean {
+/** Timing-safe string comparison for secrets. */
+export function safeEquals(a: string, b: string): boolean {
   const bufA = Buffer.from(a, "utf-8");
   const bufB = Buffer.from(b, "utf-8");
   if (bufA.length !== bufB.length) return false;
@@ -98,7 +99,7 @@ export function authenticateToken(
   const presented = bearerToken(authorizationHeader);
   if (!presented) return null;
   for (const entry of entries) {
-    if (constantTimeEquals(presented, entry.token)) return entry;
+    if (safeEquals(presented, entry.token)) return entry;
   }
   return null;
 }

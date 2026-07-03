@@ -1,17 +1,27 @@
 /**
  * IT Glue webhook processing.
  *
- * IT Glue signs webhook payloads with HMAC-SHA256 (hex) in the
- * `x-itglue-webhook-signature` header. Payload shape:
+ * Two inbound formats are accepted:
  *
- *   {
- *     "event": "document.updated",
- *     "data": {
- *       "id": "123",
- *       "type": "documents",
- *       "attributes": { "name": "...", "organization-id": 1, ... }
- *     }
- *   }
+ * 1. JSON:API-style (HMAC-SHA256 hex signature in `x-itglue-webhook-signature`):
+ *
+ *      {
+ *        "event": "document.updated",
+ *        "data": { "id": "123", "type": "documents", "attributes": { … } }
+ *      }
+ *
+ * 2. IT Glue **Workflows** webhook actions (Admin → Workflows → Webhook).
+ *    Workflows send a user-defined JSON template and cannot set custom
+ *    headers, so authentication uses a `?secret=` URL parameter instead of a
+ *    signature. Recommended payload template:
+ *
+ *      event           [trigger_name]
+ *      resource_url    [resource_url]
+ *      resource_name   [resource_name]
+ *      organization_name [organization_name]
+ *
+ *    The document id is extracted from the resource URL (…/docs/<id>), and
+ *    the trigger name is mapped to created/updated/destroyed by keyword.
  *
  * document.created / document.updated → re-index that document.
  * document.destroyed                  → drop it from the index.
@@ -69,6 +79,60 @@ export function isWebhookPayload(value: unknown): value is WebhookPayload {
     candidate.data !== null &&
     candidate.data.id !== undefined
   );
+}
+
+const DOC_URL_PATTERN = /\/docs\/(\d+)/;
+
+/**
+ * Accept either the JSON:API-style payload or an IT Glue Workflows webhook
+ * template, normalizing both to WebhookPayload. Returns null when no document
+ * reference can be found.
+ */
+export function normalizeWebhookBody(body: unknown): WebhookPayload | null {
+  if (isWebhookPayload(body)) return body;
+  if (typeof body !== "object" || body === null) return null;
+  const record = body as Record<string, unknown>;
+
+  // Workflow templates are flat key/value objects; find the document URL in
+  // any string field so the exact key name doesn't matter.
+  let url: string | undefined;
+  let documentId: string | undefined;
+  for (const value of Object.values(record)) {
+    if (typeof value !== "string") continue;
+    const match = DOC_URL_PATTERN.exec(value);
+    if (match?.[1]) {
+      url = value;
+      documentId = match[1];
+      break;
+    }
+  }
+  if (!documentId) return null;
+
+  const rawEvent =
+    typeof record.event === "string"
+      ? record.event
+      : typeof record.trigger_name === "string"
+        ? record.trigger_name
+        : "";
+  const event = /delet|destroy/i.test(rawEvent)
+    ? "document.destroyed"
+    : /creat/i.test(rawEvent)
+      ? "document.created"
+      : "document.updated";
+
+  return {
+    event,
+    data: {
+      id: documentId,
+      type: "documents",
+      attributes: {
+        name: typeof record.resource_name === "string" ? record.resource_name : undefined,
+        "organization-name":
+          typeof record.organization_name === "string" ? record.organization_name : undefined,
+        "resource-url": url,
+      },
+    },
+  };
 }
 
 /** Process one webhook event. Never throws; the outcome describes what happened. */

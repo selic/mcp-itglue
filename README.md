@@ -122,7 +122,22 @@ Set `OPENAI_API_KEY` (or `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_ENDPOINT`, where
 
 The index stays fresh three ways:
 
-1. **IT Glue webhook** — point an IT Glue webhook at `https://<host>/webhook/itglue` for document created/updated/destroyed events. Set `ITGLUE_WEBHOOK_SECRET`; payload signatures (`x-itglue-webhook-signature`, HMAC-SHA256) are verified.
+1. **IT Glue webhook** — in IT Glue, webhooks are sent by **Workflows** (Admin → Workflows): add a *Document* trigger (created/updated) with a *Webhook* action. Workflow actions cannot send custom headers, so put the shared secret in the URL:
+
+   ```
+   https://<host>/webhook/itglue?secret=<ITGLUE_WEBHOOK_SECRET>
+   ```
+
+   and use a JSON payload template like:
+
+   | Key | Value |
+   |---|---|
+   | `event` | `[trigger_name]` |
+   | `resource_url` | `[resource_url]` |
+   | `resource_name` | `[resource_name]` |
+   | `organization_name` | `[organization_name]` |
+
+   The document id is parsed from `resource_url`; the trigger name maps to created/updated/deleted by keyword. Classic JSON:API-style payloads with an `x-itglue-webhook-signature` HMAC-SHA256 header are also accepted.
 2. **Self-refresh** — documents created/updated/published/deleted through this server's tools are re-indexed automatically in the background.
 3. **Manual refresh** — `POST /index/refresh` with `Authorization: Bearer <ITGLUE_WEBHOOK_SECRET>` (or an `x-refresh-secret` header, or an admin token). Body `{"document_id": "123"}` refreshes one document; an empty body re-crawls every indexed organization. Returns `202` and processes in the background.
 
