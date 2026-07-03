@@ -24,8 +24,22 @@ jobs:
       - run: npm run build
       - run: npm test
 
+      # Publishing may also happen manually (npm login + npm publish), so this
+      # step is a no-op when the version is already live or no token is set —
+      # the GitHub release below must still be created either way.
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "mcp-itglue@$version" version >/dev/null 2>&1; then
+            echo "mcp-itglue@$version is already on npm — skipping publish"
+            exit 0
+          fi
+          if [ -z "$NODE_AUTH_TOKEN" ]; then
+            echo "NPM_TOKEN secret not set and mcp-itglue@$version is not on npm — skipping publish"
+            echo "Publish manually with: npm login && npm publish"
+            exit 0
+          fi
+          npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
