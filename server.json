@@ -3,7 +3,7 @@
   "name": "io.github.selic/mcp-itglue",
   "title": "IT Glue",
   "description": "IT Glue MCP server for MSPs — documents, flexible assets, semantic vector search, role-based access control, and bring-your-own-key support",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "repository": {
     "url": "https://github.com/selic/mcp-itglue",
     "source": "github"
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "mcp-itglue",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
