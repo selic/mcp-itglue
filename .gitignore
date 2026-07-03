@@ -1,3 +1,6 @@
+# Private working notes — must never reach the public repo
+docs/
+
 node_modules/
 dist/
 *.log
