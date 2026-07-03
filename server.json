@@ -1,0 +1,77 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.selic/mcp-itglue",
+  "title": "IT Glue",
+  "description": "IT Glue MCP server for MSPs — documents, flexible assets, semantic vector search, role-based access control, and bring-your-own-key support",
+  "version": "0.1.1",
+  "repository": {
+    "url": "https://github.com/selic/mcp-itglue",
+    "source": "github"
+  },
+  "websiteUrl": "https://github.com/selic/mcp-itglue#readme",
+  "packages": [
+    {
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
+      "identifier": "mcp-itglue",
+      "version": "0.1.1",
+      "runtimeHint": "npx",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "ITGLUE_API_KEY",
+          "description": "IT Glue API key (Account → Settings → API Keys)",
+          "isRequired": true,
+          "isSecret": true
+        },
+        {
+          "name": "ITGLUE_REGION",
+          "description": "IT Glue region: us, eu, or au",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "us"
+        },
+        {
+          "name": "ITGLUE_BASE_URL",
+          "description": "Full API base URL (overrides ITGLUE_REGION)",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "description": "OpenAI API key — enables semantic vector search tools",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "AZURE_OPENAI_API_KEY",
+          "description": "Azure OpenAI API key — enables vector search via Azure (requires AZURE_OPENAI_ENDPOINT)",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "AZURE_OPENAI_ENDPOINT",
+          "description": "Azure OpenAI endpoint URL",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "EMBEDDING_MODEL",
+          "description": "Embedding model or Azure deployment name",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "text-embedding-3-small"
+        },
+        {
+          "name": "VECTOR_INDEX_PATH",
+          "description": "Path of the persisted vector index file",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "./vector-index.json"
+        }
+      ]
+    }
+  ]
+}
