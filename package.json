@@ -14,6 +14,7 @@
   ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build",
     "start": "node dist/index.js",
     "start:http": "node dist/index.js --transport http",
     "dev": "tsx src/index.ts",
@@ -23,6 +24,7 @@
   },
   "keywords": [
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "itglue",
     "it-glue",
@@ -35,6 +37,14 @@
     "node": ">=20"
   },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/selic/mcp-itglue.git"
+  },
+  "homepage": "https://github.com/selic/mcp-itglue#readme",
+  "bugs": {
+    "url": "https://github.com/selic/mcp-itglue/issues"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
     "express": "^5.2.1",
