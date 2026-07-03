@@ -24,10 +24,10 @@ import express, { type Request, type Response } from "express";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 import type { ServerConfig } from "../config.js";
-import { authenticateToken, loadTokenEntries, type Role } from "../auth/tokens.js";
+import { authenticateToken, loadTokenEntries, safeEquals, type Role } from "../auth/tokens.js";
 import { createServer, indexerDepsFor, SERVER_NAME, SERVER_VERSION } from "../server.js";
 import { ITGlueClient } from "../itglue/client.js";
-import { isWebhookPayload, processWebhookEvent, verifyWebhookSignature } from "../webhook/handler.js";
+import { normalizeWebhookBody, processWebhookEvent, verifyWebhookSignature } from "../webhook/handler.js";
 import { openIndex } from "../vector/store.js";
 import { refreshDocument, reindexAll } from "../vector/indexer.js";
 
@@ -214,22 +214,31 @@ export function createApp(config: ServerConfig): express.Express {
   app.post("/webhook/itglue", (req: Request, res: Response) => {
     const rawBody = (req as Request & { rawBody?: string }).rawBody ?? "";
     if (config.webhookSecret) {
+      // Two auth options: HMAC signature header, or — for IT Glue Workflows,
+      // which cannot send custom headers — the shared secret as ?secret=.
       const signature = headerValue(req, "x-itglue-webhook-signature");
-      if (!verifyWebhookSignature(rawBody, signature, config.webhookSecret)) {
-        res.status(401).json({ error: "Invalid webhook signature" });
+      const querySecret = typeof req.query.secret === "string" ? req.query.secret : undefined;
+      const signatureOk =
+        !!signature && verifyWebhookSignature(rawBody, signature, config.webhookSecret);
+      const queryOk = !!querySecret && safeEquals(querySecret, config.webhookSecret);
+      if (!signatureOk && !queryOk) {
+        res.status(401).json({ error: "Invalid webhook signature or secret" });
         return;
       }
     } else {
       console.error(
-        "[webhook] ITGLUE_WEBHOOK_SECRET is not set — signature verification skipped. Set it in production."
+        "[webhook] ITGLUE_WEBHOOK_SECRET is not set — webhook authentication skipped. Set it in production."
       );
     }
 
-    if (!isWebhookPayload(req.body)) {
-      res.status(400).json({ error: "Missing required fields: event, data.id" });
+    const payload = normalizeWebhookBody(req.body);
+    if (!payload) {
+      res.status(400).json({
+        error:
+          "Unrecognized payload — expected {event, data.id} or a workflow template containing a document URL",
+      });
       return;
     }
-    const payload = req.body;
 
     // Acknowledge immediately so IT Glue does not retry; process in the background.
     res.status(200).json({ received: true, event: payload.event, document_id: payload.data.id });
@@ -243,10 +252,12 @@ export function createApp(config: ServerConfig): express.Express {
   });
 
   app.post("/index/refresh", (req: Request, res: Response) => {
+    const bearer = headerValue(req, "authorization");
+    const refreshHeader = headerValue(req, "x-refresh-secret");
     const authorizedBySecret =
       !!config.webhookSecret &&
-      (headerValue(req, "authorization") === `Bearer ${config.webhookSecret}` ||
-        headerValue(req, "x-refresh-secret") === config.webhookSecret);
+      ((!!bearer && safeEquals(bearer, `Bearer ${config.webhookSecret}`)) ||
+        (!!refreshHeader && safeEquals(refreshHeader, config.webhookSecret)));
     const adminToken = authenticateToken(req.headers.authorization, loadTokenEntries());
     const authorizedByToken = adminToken?.role === "admin";
     if (!authorizedBySecret && !authorizedByToken) {
