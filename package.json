@@ -21,7 +21,8 @@
     "dev": "tsx src/index.ts",
     "dev:http": "tsx src/index.ts --transport http",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "bundle": "npm run build && node scripts/bundle.mjs"
   },
   "keywords": [
     "mcp",

@@ -9,3 +9,5 @@ dist/
 vector-index.json
 coverage/
 .DS_Store
+*.mcpb
+.mcpb-build/

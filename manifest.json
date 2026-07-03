@@ -1,0 +1,69 @@
+{
+  "manifest_version": "0.3",
+  "name": "mcp-itglue",
+  "display_name": "IT Glue",
+  "version": "0.1.1",
+  "description": "IT Glue for MSPs — documents, flexible assets, and semantic search over your documentation",
+  "long_description": "MCP server for the IT Glue API. Browse organizations, read and write documents and flexible assets, and (with an OpenAI API key) run semantic vector search over your documentation — \"how do I remove a backup agent\" finds the right runbook even when the words don't match.",
+  "author": {
+    "name": "selic",
+    "url": "https://github.com/selic"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/selic/mcp-itglue"
+  },
+  "homepage": "https://github.com/selic/mcp-itglue",
+  "keywords": ["itglue", "it-glue", "msp", "documentation", "vector-search"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "ITGLUE_API_KEY": "${user_config.itglue_api_key}",
+        "ITGLUE_REGION": "${user_config.itglue_region}",
+        "ITGLUE_BASE_URL": "${user_config.itglue_base_url}",
+        "OPENAI_API_KEY": "${user_config.openai_api_key}",
+        "VECTOR_INDEX_PATH": "${HOME}/.mcp-itglue/vector-index.json"
+      }
+    }
+  },
+  "user_config": {
+    "itglue_api_key": {
+      "type": "string",
+      "title": "IT Glue API key",
+      "description": "Create one in IT Glue under Account → Settings → API Keys",
+      "required": true,
+      "sensitive": true
+    },
+    "itglue_region": {
+      "type": "string",
+      "title": "IT Glue region",
+      "description": "us, eu, or au",
+      "default": "us",
+      "required": false
+    },
+    "itglue_base_url": {
+      "type": "string",
+      "title": "API base URL override",
+      "description": "Full API base URL — leave empty to use the region default",
+      "required": false
+    },
+    "openai_api_key": {
+      "type": "string",
+      "title": "OpenAI API key (optional)",
+      "description": "Enables semantic vector search tools; leave empty to disable",
+      "required": false,
+      "sensitive": true
+    }
+  },
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": {
+      "node": ">=20"
+    }
+  }
+}
