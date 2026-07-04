@@ -193,6 +193,7 @@ The index stays fresh three ways:
 | `PORT` | `3000` | HTTP port |
 | `MCP_TOKENS_VIEWER/EDITOR/ADMIN` | — | `label:token,label:token` per role |
 | `CLIENT_ITGLUE_KEYS` | `with-token` | BYOK policy: `disabled`, `with-token`, `open` |
+| `ALLOWED_ORIGINS` | — | Extra browser origins allowed on `/mcp` (comma-separated). Requests without an `Origin` header and localhost origins always pass; other browser origins are rejected with 403 |
 | `ITGLUE_WEBHOOK_SECRET` | — | Webhook signature + `/index/refresh` secret |
 | `VECTOR_INDEX_PATH` | `./vector-index.json` | Vector index file |
 | `OPENAI_API_KEY` | — | Enables vector search (OpenAI) |

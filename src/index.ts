@@ -25,6 +25,7 @@ Environment:
   MCP_TOKENS_EDITOR        label:token[,…] — read + create/update/publish
   MCP_TOKENS_ADMIN         label:token[,…] — everything incl. deletes
   CLIENT_ITGLUE_KEYS       disabled|with-token|open — client-supplied IT Glue keys (default: with-token)
+  ALLOWED_ORIGINS          Extra browser origins allowed on /mcp (localhost always allowed)
   ITGLUE_WEBHOOK_SECRET    Secret for /webhook/itglue signatures and /index/refresh
   VECTOR_INDEX_PATH        Vector index file (default: ./vector-index.json)
   OPENAI_API_KEY | AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT

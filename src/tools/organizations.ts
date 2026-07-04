@@ -6,12 +6,16 @@ import { buildQuery, type ITGlueClient } from "../itglue/client.js";
 import type { Organization } from "../itglue/types.js";
 import { clip, pageFooter } from "../format.js";
 import {
+  emptyPageData,
   failure,
+  itemOutputShape,
   json,
+  pageData,
   pageNumberField,
+  pageOutputShape,
   pageSizeField,
   responseFormatField,
-  text,
+  structured,
 } from "./shared.js";
 
 function organizationLines(org: Organization): string[] {
@@ -44,6 +48,7 @@ export function registerOrganizationTools(reg: ToolRegistrar, client: ITGlueClie
         page_size: pageSizeField,
         response_format: responseFormatField,
       },
+      outputSchema: pageOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: {
@@ -65,13 +70,16 @@ export function registerOrganizationTools(reg: ToolRegistrar, client: ITGlueClie
           })
         );
 
-        if (page.items.length === 0) return text("No organizations found.");
-        if (args.response_format === "json") return text(clip(json(page)));
+        if (page.items.length === 0) {
+          return structured("No organizations found.", emptyPageData(args.page_number));
+        }
+        const data = pageData(page);
+        if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Organizations (${page.totalCount} total)`, ""];
         for (const org of page.items) lines.push(...organizationLines(org));
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), data);
       } catch (error) {
         return failure(error);
       }
@@ -87,13 +95,14 @@ export function registerOrganizationTools(reg: ToolRegistrar, client: ITGlueClie
         organization_id: z.number().int().positive().describe("The organization ID"),
         response_format: responseFormatField,
       },
+      outputSchema: itemOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: { organization_id: number; response_format: "markdown" | "json" }) => {
       try {
         const org = await client.getOne<Organization>(`/organizations/${args.organization_id}`);
-        if (args.response_format === "json") return text(json(org));
-        return text(organizationLines(org).join("\n"));
+        if (args.response_format === "json") return structured(json(org), { item: org });
+        return structured(organizationLines(org).join("\n"), { item: org });
       } catch (error) {
         return failure(error);
       }

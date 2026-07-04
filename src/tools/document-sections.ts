@@ -8,11 +8,16 @@ import type { DocumentSection } from "../itglue/types.js";
 import { clip, htmlToText, pageFooter, sectionKind } from "../format.js";
 import { queueDocumentRefresh, type IndexerDeps } from "../vector/indexer.js";
 import {
+  emptyPageData,
   failure,
+  itemOutputShape,
   json,
+  pageData,
   pageNumberField,
+  pageOutputShape,
   pageSizeField,
   responseFormatField,
+  structured,
   text,
 } from "./shared.js";
 
@@ -53,6 +58,7 @@ export function registerDocumentSectionTools(
         page_size: pageSizeField,
         response_format: responseFormatField,
       },
+      outputSchema: pageOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: {
@@ -67,13 +73,19 @@ export function registerDocumentSectionTools(
           buildQuery({ pageNumber: args.page_number, pageSize: args.page_size })
         );
 
-        if (page.items.length === 0) return text("This document has no sections.");
-        if (args.response_format === "json") return text(clip(json(page)));
+        if (page.items.length === 0) {
+          return structured("This document has no sections.", emptyPageData(args.page_number));
+        }
+        const data = pageData(page);
+        if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Sections (${page.totalCount} total)`, ""];
         for (const section of page.items) lines.push(sectionSummary(section));
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
-        return text(clip(lines.join("\n"), "Fetch single sections with itglue_get_document_section."));
+        return structured(
+          clip(lines.join("\n"), "Fetch single sections with itglue_get_document_section."),
+          data
+        );
       } catch (error) {
         return failure(error);
       }
@@ -91,6 +103,7 @@ export function registerDocumentSectionTools(
         section_id: z.number().int().positive().describe("The section ID"),
         response_format: responseFormatField,
       },
+      outputSchema: itemOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: { document_id: number; section_id: number; response_format: "markdown" | "json" }) => {
@@ -98,7 +111,7 @@ export function registerDocumentSectionTools(
         const section = await client.getOne<DocumentSection>(
           sectionsPath(args.document_id, args.section_id)
         );
-        if (args.response_format === "json") return text(clip(json(section)));
+        if (args.response_format === "json") return structured(clip(json(section)), { item: section });
 
         const lines = [
           `# ${sectionKind(section.resource_type)} section (ID: ${section.id})`,
@@ -109,7 +122,7 @@ export function registerDocumentSectionTools(
         if (section.level != null) lines.push(`**Level**: ${section.level}`);
         if (section.duration != null) lines.push(`**Duration**: ${section.duration} min`);
         lines.push("", section.content ? htmlToText(section.content) : "*No content*");
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), { item: section });
       } catch (error) {
         return failure(error);
       }

@@ -1,0 +1,10 @@
+<!-- Copy to eval.local.xml (gitignored) and fill with questions verified
+     against your own IT Glue instance. Keep questions read-only, independent,
+     multi-step, and with a single stable answer. -->
+<evaluation>
+  <qa_pair>
+    <question>Which flexible asset type has a required field named "SSID Name", and how many assets of that type exist for the organization called EXAMPLE?</question>
+    <answer>Wireless; 4</answer>
+  </qa_pair>
+  <!-- 9 more qa_pairs -->
+</evaluation>

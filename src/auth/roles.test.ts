@@ -58,17 +58,24 @@ describe("roleAllows", () => {
 
 type Handler = (args: Record<string, unknown>) => Promise<{
   content: Array<{ type: "text"; text: string }>;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 }>;
 
-function stubServer(): { server: McpServer; tools: Map<string, Handler> } {
+function stubServer(): {
+  server: McpServer;
+  tools: Map<string, Handler>;
+  defs: Map<string, Record<string, unknown>>;
+} {
   const tools = new Map<string, Handler>();
+  const defs = new Map<string, Record<string, unknown>>();
   const server = {
-    registerTool: (name: string, _def: unknown, handler: Handler) => {
+    registerTool: (name: string, def: Record<string, unknown>, handler: Handler) => {
       tools.set(name, handler);
+      defs.set(name, def);
     },
   } as unknown as McpServer;
-  return { server, tools };
+  return { server, tools, defs };
 }
 
 describe("ToolRegistrar", () => {
@@ -110,5 +117,26 @@ describe("ToolRegistrar", () => {
     const result = await tools.get("t_destroy")!({});
     expect(result.content[0]?.text).toBe("ok");
     expect(result.isError).toBeUndefined();
+  });
+
+  it("passes outputSchema through to registerTool and preserves structuredContent", async () => {
+    const { server, tools, defs } = stubServer();
+    const reg = new ToolRegistrar(server, "viewer");
+    const outputSchema = { item: {} as never };
+    reg.register({ ...readSpec("t_structured"), outputSchema }, async () => ({
+      content: [{ type: "text", text: "ok" }],
+      structuredContent: { item: { id: "1" } },
+    }));
+    expect(defs.get("t_structured")?.outputSchema).toBe(outputSchema);
+    const result = await tools.get("t_structured")!({});
+    expect(result.structuredContent).toEqual({ item: { id: "1" } });
+  });
+
+  it("omits the outputSchema key entirely when the spec has none", () => {
+    const { server, defs } = stubServer();
+    new ToolRegistrar(server, "viewer").register(readSpec("t_plain"), async () => ({
+      content: [{ type: "text", text: "ok" }],
+    }));
+    expect("outputSchema" in defs.get("t_plain")!).toBe(false);
   });
 });

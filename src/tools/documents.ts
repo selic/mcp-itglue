@@ -7,11 +7,15 @@ import type { Document, DocumentSection } from "../itglue/types.js";
 import { clip, htmlToText, pageFooter, sectionKind } from "../format.js";
 import { queueDocumentRefresh, type IndexerDeps } from "../vector/indexer.js";
 import {
+  emptyPageData,
   failure,
+  itemOutputShape,
   json,
   pageNumberField,
+  pageOutputShape,
   pageSizeField,
   responseFormatField,
+  structured,
   text,
 } from "./shared.js";
 
@@ -47,6 +51,7 @@ export function registerDocumentTools(
         page_size: pageSizeField,
         response_format: responseFormatField,
       },
+      outputSchema: pageOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: {
@@ -84,15 +89,23 @@ export function registerDocumentTools(
         const totalCount = rootPage.totalCount + folderPage.totalCount;
         const hasMore = rootPage.hasMore || folderPage.hasMore;
 
-        if (documents.length === 0) return text("No documents found.");
+        if (documents.length === 0) {
+          return structured("No documents found.", emptyPageData(args.page_number));
+        }
+        const data = {
+          items: documents,
+          total_count: totalCount,
+          page_number: args.page_number,
+          has_more: hasMore,
+        };
         if (args.response_format === "json") {
-          return text(clip(json({ items: documents, totalCount, pageNumber: args.page_number, hasMore })));
+          return structured(clip(json(data)), data);
         }
 
         const lines = [`# Documents (${totalCount} total)`, ""];
         for (const doc of documents) lines.push(documentSummary(doc));
         lines.push(pageFooter(totalCount, args.page_number, hasMore));
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), data);
       } catch (error) {
         return failure(error);
       }
@@ -111,6 +124,7 @@ export function registerDocumentTools(
         document_id: z.number().int().positive().describe("The document ID"),
         response_format: responseFormatField,
       },
+      outputSchema: itemOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: { document_id: number; response_format: "markdown" | "json" }) => {
@@ -121,8 +135,9 @@ export function registerDocumentTools(
           { "page[size]": 1000 }
         );
 
+        const item = { ...doc, sections: sections.items };
         if (args.response_format === "json") {
-          return text(clip(json({ ...doc, sections: sections.items })));
+          return structured(clip(json(item)), { item });
         }
 
         const lines = [`# ${doc.name}`, "", `**ID**: ${doc.id}`];
@@ -144,8 +159,9 @@ export function registerDocumentTools(
           }
         }
 
-        return text(
-          clip(lines.join("\n"), "Fetch individual sections with itglue_get_document_section.")
+        return structured(
+          clip(lines.join("\n"), "Fetch individual sections with itglue_get_document_section."),
+          { item }
         );
       } catch (error) {
         return failure(error);
