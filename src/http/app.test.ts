@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { Request } from "express";
 import type { ServerConfig } from "../config.js";
-import { resolveAuth } from "./app.js";
+import { originAllowed, resolveAuth } from "./app.js";
 
 const TOKEN_VARS = ["MCP_TOKENS_VIEWER", "MCP_TOKENS_EDITOR", "MCP_TOKENS_ADMIN"] as const;
 
@@ -12,6 +12,7 @@ function makeConfig(overrides: Partial<ServerConfig> = {}): ServerConfig {
     baseUrl: "https://api.itglue.com",
     apiKey: "server-key",
     clientKeyMode: "with-token",
+    allowedOrigins: [],
     webhookSecret: undefined,
     vectorIndexPath: "./vector-index.json",
     ...overrides,
@@ -124,5 +125,36 @@ describe("resolveAuth", () => {
     );
     expect(auth).toMatchObject({ ok: false, status: 401 });
     if (!auth.ok) expect(auth.message).toContain("x-itglue-api-key");
+  });
+});
+
+describe("originAllowed", () => {
+  it("allows requests without an Origin header (native MCP clients, curl)", () => {
+    expect(originAllowed(undefined, [])).toBe(true);
+  });
+
+  it("always allows localhost origins", () => {
+    expect(originAllowed("http://localhost:3000", [])).toBe(true);
+    expect(originAllowed("http://127.0.0.1:5173", [])).toBe(true);
+    expect(originAllowed("http://[::1]:8080", [])).toBe(true);
+    expect(originAllowed("https://localhost", [])).toBe(true);
+  });
+
+  it("rejects external origins not in the allowlist", () => {
+    expect(originAllowed("https://evil.example", [])).toBe(false);
+    expect(originAllowed("https://localhost.evil.example", [])).toBe(false);
+  });
+
+  it("allows exactly-matching allowlisted origins", () => {
+    const allowed = ["https://app.example.com"];
+    expect(originAllowed("https://app.example.com", allowed)).toBe(true);
+    expect(originAllowed("https://app.example.com/", allowed)).toBe(true);
+    expect(originAllowed("http://app.example.com", allowed)).toBe(false);
+    expect(originAllowed("https://other.example.com", allowed)).toBe(false);
+  });
+
+  it("rejects malformed or opaque origins", () => {
+    expect(originAllowed("null", [])).toBe(false);
+    expect(originAllowed("not a url", [])).toBe(false);
   });
 });

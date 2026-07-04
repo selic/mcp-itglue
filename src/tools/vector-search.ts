@@ -6,7 +6,7 @@
 import { z } from "zod";
 import type { ToolRegistrar } from "../auth/roles.js";
 import { reindexOrganization, type IndexerDeps } from "../vector/indexer.js";
-import { failure, text } from "./shared.js";
+import { failure, structured, text } from "./shared.js";
 
 export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps): void {
   reg.register(
@@ -78,12 +78,19 @@ export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps)
           .default(0.3)
           .describe("Minimum similarity score (0-1)"),
       },
+      outputSchema: {
+        query: z.string(),
+        results: z.array(z.record(z.string(), z.unknown())),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args: { query: string; organization_id?: number; top_k: number; threshold: number }) => {
       try {
         if (deps.index.count() === 0) {
-          return text("The vector index is empty. Run itglue_build_vector_index first.");
+          return structured("The vector index is empty. Run itglue_build_vector_index first.", {
+            query: args.query,
+            results: [],
+          });
         }
         const queryVector = await deps.embedder.embed(args.query);
         const hits = deps.index.search(queryVector, {
@@ -91,9 +98,13 @@ export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps)
           threshold: args.threshold,
           organizationId: args.organization_id ? String(args.organization_id) : undefined,
         });
+        const data = { query: args.query, results: hits as unknown as Array<Record<string, unknown>> };
 
         if (hits.length === 0) {
-          return text(`No documents matched "${args.query}" above threshold ${args.threshold}.`);
+          return structured(
+            `No documents matched "${args.query}" above threshold ${args.threshold}.`,
+            data
+          );
         }
 
         const lines = [`# Search results for "${args.query}"`, ""];
@@ -104,7 +115,7 @@ export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps)
           if (hit.url) lines.push(`- **URL**: ${hit.url}`);
           lines.push("", `> ${hit.excerpt}`, "");
         });
-        return text(lines.join("\n"));
+        return structured(lines.join("\n"), data);
       } catch (error) {
         return failure(error);
       }
@@ -119,14 +130,28 @@ export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps)
         "Show what is in the local vector index: total documents and a per-organization breakdown. " +
         "Use this to decide whether itglue_build_vector_index needs to run.",
       inputSchema: {},
+      outputSchema: {
+        index_path: z.string(),
+        total_documents: z.number(),
+        embedding_model: z.string(),
+        organizations: z.record(z.string(), z.number()),
+      },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async () => {
       deps.index.reload();
       const total = deps.index.count();
+      const organizations = deps.index.countsByOrganization();
+      const data = {
+        index_path: deps.index.path,
+        total_documents: total,
+        embedding_model: deps.embedder.model,
+        organizations,
+      };
       if (total === 0) {
-        return text(
-          `The vector index is empty (file: ${deps.index.path}). Run itglue_build_vector_index to populate it.`
+        return structured(
+          `The vector index is empty (file: ${deps.index.path}). Run itglue_build_vector_index to populate it.`,
+          data
         );
       }
       const lines = [
@@ -139,10 +164,10 @@ export function registerVectorSearchTools(reg: ToolRegistrar, deps: IndexerDeps)
         "## Per organization",
         "",
       ];
-      for (const [org, count] of Object.entries(deps.index.countsByOrganization())) {
+      for (const [org, count] of Object.entries(organizations)) {
         lines.push(`- ${org}: ${count}`);
       }
-      return text(lines.join("\n"));
+      return structured(lines.join("\n"), data);
     }
   );
 }

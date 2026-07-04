@@ -6,11 +6,16 @@ import { buildQuery, type ITGlueClient } from "../itglue/client.js";
 import type { FlexibleAsset, FlexibleAssetField, FlexibleAssetType } from "../itglue/types.js";
 import { clip, pageFooter } from "../format.js";
 import {
+  emptyPageData,
   failure,
+  itemOutputShape,
   json,
+  pageData,
   pageNumberField,
+  pageOutputShape,
   pageSizeField,
   responseFormatField,
+  structured,
   text,
 } from "./shared.js";
 
@@ -52,6 +57,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         page_size: pageSizeField,
         response_format: responseFormatField,
       },
+      outputSchema: pageOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: {
@@ -70,8 +76,11 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
           })
         );
 
-        if (page.items.length === 0) return text("No flexible asset types found.");
-        if (args.response_format === "json") return text(clip(json(page)));
+        if (page.items.length === 0) {
+          return structured("No flexible asset types found.", emptyPageData(args.page_number));
+        }
+        const data = pageData(page);
+        if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Flexible Asset Types (${page.totalCount} total)`, ""];
         for (const t of page.items) {
@@ -80,7 +89,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
           lines.push(`- **Enabled**: ${t.enabled ? "Yes" : "No"}`, "");
         }
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), data);
       } catch (error) {
         return failure(error);
       }
@@ -98,6 +107,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         flexible_asset_type_id: z.number().int().positive().describe("The flexible asset type ID"),
         response_format: responseFormatField,
       },
+      outputSchema: itemOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: { flexible_asset_type_id: number; response_format: "markdown" | "json" }) => {
@@ -110,8 +120,9 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
           { "page[size]": 1000 }
         );
 
+        const item = { ...assetType, fields: fields.items };
         if (args.response_format === "json") {
-          return text(clip(json({ ...assetType, fields: fields.items })));
+          return structured(clip(json(item)), { item });
         }
 
         const lines = [`# ${assetType.name} (ID: ${assetType.id})`];
@@ -127,7 +138,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
           "",
           "Trait keys for create/update are the lowercased, hyphenated field names (e.g. \"SSID Name\" → \"ssid-name\")."
         );
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), { item });
       } catch (error) {
         return failure(error);
       }
@@ -148,6 +159,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         page_size: pageSizeField,
         response_format: responseFormatField,
       },
+      outputSchema: pageOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: {
@@ -170,13 +182,16 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
           })
         );
 
-        if (page.items.length === 0) return text("No flexible assets found.");
-        if (args.response_format === "json") return text(clip(json(page)));
+        if (page.items.length === 0) {
+          return structured("No flexible assets found.", emptyPageData(args.page_number));
+        }
+        const data = pageData(page);
+        if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Flexible Assets (${page.totalCount} total)`, ""];
         for (const asset of page.items) lines.push(assetSummary(asset));
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
-        return text(clip(lines.join("\n")));
+        return structured(clip(lines.join("\n")), data);
       } catch (error) {
         return failure(error);
       }
@@ -192,6 +207,7 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         flexible_asset_id: z.number().int().positive().describe("The flexible asset ID"),
         response_format: responseFormatField,
       },
+      outputSchema: itemOutputShape,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
     },
     async (args: { flexible_asset_id: number; response_format: "markdown" | "json" }) => {
@@ -199,8 +215,8 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         const asset = await client.getOne<FlexibleAsset>(
           `/flexible_assets/${args.flexible_asset_id}`
         );
-        if (args.response_format === "json") return text(clip(json(asset)));
-        return text(clip(assetSummary(asset)));
+        if (args.response_format === "json") return structured(clip(json(asset)), { item: asset });
+        return structured(clip(assetSummary(asset)), { item: asset });
       } catch (error) {
         return failure(error);
       }

@@ -13,6 +13,9 @@
  *   MCP_TOKENS_VIEWER     Comma-separated label:token list for the viewer role
  *   MCP_TOKENS_EDITOR     Comma-separated label:token list for the editor role
  *   MCP_TOKENS_ADMIN      Comma-separated label:token list for the admin role
+ *   ALLOWED_ORIGINS       Comma-separated browser origins additionally allowed on
+ *                         /mcp (e.g. https://app.example.com). Localhost origins
+ *                         and requests without an Origin header always pass.
  *   ITGLUE_WEBHOOK_SECRET Shared secret for /webhook/itglue (HMAC) and /index/refresh
  *   VECTOR_INDEX_PATH     Path of the persisted vector index (default: ./vector-index.json)
  *   OPENAI_API_KEY        Enables vector search (OpenAI embeddings)
@@ -40,6 +43,8 @@ export interface ServerConfig {
   /** Server-wide IT Glue API key. May be absent when client-supplied keys are enabled. */
   apiKey: string | undefined;
   clientKeyMode: ClientKeyMode;
+  /** Browser origins additionally allowed on /mcp (localhost always passes). */
+  allowedOrigins: string[];
   webhookSecret: string | undefined;
   vectorIndexPath: string;
 }
@@ -118,12 +123,18 @@ export function loadConfig(
     );
   }
 
+  const allowedOrigins = (cleanEnv(env, "ALLOWED_ORIGINS") || "")
+    .split(",")
+    .map((origin) => origin.trim().replace(/\/+$/, ""))
+    .filter((origin) => origin.length > 0);
+
   return {
     transport,
     port,
     baseUrl: baseUrl.replace(/\/+$/, ""),
     apiKey,
     clientKeyMode,
+    allowedOrigins,
     webhookSecret: cleanEnv(env, "ITGLUE_WEBHOOK_SECRET"),
     vectorIndexPath: cleanEnv(env, "VECTOR_INDEX_PATH") || "./vector-index.json",
   };

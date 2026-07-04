@@ -5,6 +5,10 @@ docs/
 .playwright-mcp/
 .mcp.json
 
+# Per-instance eval sets contain real client data — never commit
+evals/eval*.xml
+evals/answers*.xml
+
 node_modules/
 dist/
 *.log

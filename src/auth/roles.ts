@@ -32,6 +32,8 @@ export interface ToolSpec {
   title: string;
   description: string;
   inputSchema: ZodRawShape;
+  /** When set, every non-error result must carry a matching structuredContent. */
+  outputSchema?: ZodRawShape;
   annotations: ToolAnnotations;
   /** Explicit tier override; defaults to a tier derived from annotations. */
   tier?: ToolTier;
@@ -61,6 +63,7 @@ function tierRequires(tier: ToolTier): Role {
 
 type ToolResult = {
   content: Array<{ type: "text"; text: string }>;
+  structuredContent?: Record<string, unknown>;
   isError?: boolean;
 };
 
@@ -104,6 +107,7 @@ export class ToolRegistrar {
         title: spec.title,
         description: spec.description,
         inputSchema: spec.inputSchema,
+        ...(spec.outputSchema ? { outputSchema: spec.outputSchema } : {}),
         annotations: spec.annotations,
       },
       guarded as never

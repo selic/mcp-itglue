@@ -112,6 +112,24 @@ function principalMatches(session: SessionRecord, auth: Extract<AuthOutcome, { o
   );
 }
 
+/**
+ * DNS-rebinding / cross-site protection for /mcp (MCP spec: servers SHOULD
+ * validate Origin). Non-browser clients (Claude Desktop, npx, curl) send no
+ * Origin header and always pass; browser pages only pass from localhost or an
+ * explicitly allowed origin. Exported for tests.
+ */
+export function originAllowed(origin: string | undefined, allowedOrigins: string[]): boolean {
+  if (origin === undefined) return true;
+  let hostname: string;
+  try {
+    hostname = new URL(origin).hostname;
+  } catch {
+    return false; // malformed Origin (including the literal "null") → reject
+  }
+  if (hostname === "localhost" || hostname === "127.0.0.1" || hostname === "[::1]") return true;
+  return allowedOrigins.includes(origin.replace(/\/+$/, ""));
+}
+
 export function createApp(config: ServerConfig): express.Express {
   const app = express();
   app.use(
@@ -131,6 +149,19 @@ export function createApp(config: ServerConfig): express.Express {
   });
 
   // ── MCP endpoint ─────────────────────────────────────────────
+
+  app.use("/mcp", (req: Request, res: Response, next) => {
+    const origin = headerValue(req, "origin");
+    if (!originAllowed(origin, config.allowedOrigins)) {
+      return rpcError(
+        res,
+        403,
+        -32003,
+        `Forbidden: origin "${origin}" is not allowed. Add it to ALLOWED_ORIGINS to permit browser access.`
+      );
+    }
+    next();
+  });
 
   app.post("/mcp", (req: Request, res: Response) => {
     void (async () => {
