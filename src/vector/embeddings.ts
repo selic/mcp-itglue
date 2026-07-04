@@ -8,6 +8,7 @@
  */
 
 import OpenAI, { AzureOpenAI } from "openai";
+import { cleanEnv } from "../config.js";
 
 export const DEFAULT_EMBEDDING_MODEL = "text-embedding-3-small";
 const BATCH_SIZE = 100;
@@ -52,17 +53,20 @@ export class Embedder {
 }
 
 export function embedderFromEnv(env: NodeJS.ProcessEnv = process.env): Embedder | null {
-  const model = env.EMBEDDING_MODEL || DEFAULT_EMBEDDING_MODEL;
-  if (env.AZURE_OPENAI_API_KEY && env.AZURE_OPENAI_ENDPOINT) {
+  const model = cleanEnv(env, "EMBEDDING_MODEL") || DEFAULT_EMBEDDING_MODEL;
+  const azureKey = cleanEnv(env, "AZURE_OPENAI_API_KEY");
+  const azureEndpoint = cleanEnv(env, "AZURE_OPENAI_ENDPOINT");
+  if (azureKey && azureEndpoint) {
     return Embedder.azure(
-      env.AZURE_OPENAI_API_KEY,
-      env.AZURE_OPENAI_ENDPOINT,
+      azureKey,
+      azureEndpoint,
       model,
-      env.AZURE_OPENAI_API_VERSION || "2024-02-01"
+      cleanEnv(env, "AZURE_OPENAI_API_VERSION") || "2024-02-01"
     );
   }
-  if (env.OPENAI_API_KEY) {
-    return Embedder.openai(env.OPENAI_API_KEY, model);
+  const openaiKey = cleanEnv(env, "OPENAI_API_KEY");
+  if (openaiKey) {
+    return Embedder.openai(openaiKey, model);
   }
   return null;
 }

@@ -46,6 +46,17 @@ export interface ServerConfig {
 
 export class ConfigError extends Error {}
 
+/**
+ * Read an env var defensively: desktop/MCPB hosts pass unfilled optional
+ * user_config fields as empty strings or leave the "${user_config.…}"
+ * template unsubstituted — both must fall through to the default.
+ */
+export function cleanEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  const value = env[name];
+  if (!value || value.includes("${")) return undefined;
+  return value;
+}
+
 function flagValue(argv: string[], name: string): string | undefined {
   const idx = argv.indexOf(name);
   if (idx === -1) return undefined;
@@ -60,36 +71,43 @@ export function loadConfig(
   argv: string[] = process.argv.slice(2),
   env: NodeJS.ProcessEnv = process.env
 ): ServerConfig {
-  // `||` throughout: MCPB/desktop hosts pass unset optional user_config
-  // fields as empty strings, which must fall through to the defaults.
-  const transport = (flagValue(argv, "--transport") || env.TRANSPORT || "stdio") as Transport;
+  const transport = (flagValue(argv, "--transport") || cleanEnv(env, "TRANSPORT") || "stdio") as Transport;
   if (transport !== "stdio" && transport !== "http") {
     throw new ConfigError(`Invalid transport "${transport}" — expected "stdio" or "http"`);
   }
 
-  const portRaw = flagValue(argv, "--port") || env.PORT || "3000";
+  const portRaw = flagValue(argv, "--port") || cleanEnv(env, "PORT") || "3000";
   const port = Number(portRaw);
   if (!Number.isInteger(port) || port < 1 || port > 65535) {
     throw new ConfigError(`Invalid port "${portRaw}"`);
   }
 
-  const region = (flagValue(argv, "--region") || env.ITGLUE_REGION || "us").toLowerCase();
+  const region = (flagValue(argv, "--region") || cleanEnv(env, "ITGLUE_REGION") || "us").toLowerCase();
   const regionUrl = REGION_BASE_URLS[region];
   if (!regionUrl) {
     throw new ConfigError(
       `Unknown IT Glue region "${region}" — expected one of: ${Object.keys(REGION_BASE_URLS).join(", ")}`
     );
   }
-  const baseUrl = flagValue(argv, "--base-url") || env.ITGLUE_BASE_URL || regionUrl;
+  const baseUrl = flagValue(argv, "--base-url") || cleanEnv(env, "ITGLUE_BASE_URL") || regionUrl;
+  let baseUrlProtocol: string;
+  try {
+    baseUrlProtocol = new URL(baseUrl).protocol;
+  } catch {
+    throw new ConfigError(`Invalid IT Glue base URL "${baseUrl}" — expected e.g. https://api.itglue.com`);
+  }
+  if (baseUrlProtocol !== "https:" && baseUrlProtocol !== "http:") {
+    throw new ConfigError(`Invalid IT Glue base URL "${baseUrl}" — must be http(s)`);
+  }
 
-  const clientKeyMode = (env.CLIENT_ITGLUE_KEYS || "with-token") as ClientKeyMode;
+  const clientKeyMode = (cleanEnv(env, "CLIENT_ITGLUE_KEYS") || "with-token") as ClientKeyMode;
   if (!CLIENT_KEY_MODES.includes(clientKeyMode)) {
     throw new ConfigError(
       `Invalid CLIENT_ITGLUE_KEYS "${clientKeyMode}" — expected one of: ${CLIENT_KEY_MODES.join(", ")}`
     );
   }
 
-  const apiKey = env.ITGLUE_API_KEY || undefined;
+  const apiKey = cleanEnv(env, "ITGLUE_API_KEY");
 
   if (transport === "stdio" && !apiKey) {
     throw new ConfigError("ITGLUE_API_KEY is required for stdio transport");
@@ -106,7 +124,7 @@ export function loadConfig(
     baseUrl: baseUrl.replace(/\/+$/, ""),
     apiKey,
     clientKeyMode,
-    webhookSecret: env.ITGLUE_WEBHOOK_SECRET || undefined,
-    vectorIndexPath: env.VECTOR_INDEX_PATH || "./vector-index.json",
+    webhookSecret: cleanEnv(env, "ITGLUE_WEBHOOK_SECRET"),
+    vectorIndexPath: cleanEnv(env, "VECTOR_INDEX_PATH") || "./vector-index.json",
   };
 }
