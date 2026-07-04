@@ -1,5 +1,7 @@
 # Private working notes — must never reach the public repo
 docs/
+.serena/
+.claude/
 
 node_modules/
 dist/
