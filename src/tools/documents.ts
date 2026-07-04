@@ -216,15 +216,27 @@ export function registerDocumentTools(
       inputSchema: {
         organization_id: z.number().int().positive().describe("Organization to create the document in"),
         name: z.string().min(1).describe("Document name/title"),
+        document_folder_id: z
+          .number()
+          .int()
+          .positive()
+          .optional()
+          .describe("Folder to place the document in (the number in the folder's URL); root when omitted"),
         response_format: responseFormatField,
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     },
-    async (args: { organization_id: number; name: string; response_format: "markdown" | "json" }) => {
+    async (args: {
+      organization_id: number;
+      name: string;
+      document_folder_id?: number;
+      response_format: "markdown" | "json";
+    }) => {
       try {
         const doc = await client.create<Document>("/documents", "documents", {
           organization_id: args.organization_id,
           name: args.name,
+          document_folder_id: args.document_folder_id,
         });
         queueDocumentRefresh(refreshDeps, doc.id, "upsert");
 
