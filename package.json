@@ -39,6 +39,7 @@
     "node": ">=20"
   },
   "license": "MIT",
+  "author": "Eugene Samotija (selic) <es@defency.net> (https://defency.net)",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/selic/mcp-itglue.git"

@@ -220,6 +220,11 @@ npm test             # vitest
 npm run build        # tsc → dist/
 ```
 
+## Author
+
+Built by **Eugene Samotija** ([@selic](https://github.com/selic)) — [defency.net](https://defency.net).
+More projects: [github.com/selic](https://github.com/selic) · [LinkedIn](https://www.linkedin.com/in/evghenii-samotiia)
+
 ## License
 
 [MIT](LICENSE)
