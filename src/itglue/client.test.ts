@@ -5,6 +5,7 @@ import {
   describeError,
   fromResource,
   ITGlueApiError,
+  ITGlueClient,
   toResourcePayload,
 } from "./client.js";
 
@@ -80,5 +81,49 @@ describe("describeError", () => {
     expect(describeError(new ITGlueApiError("x", 422, "name is required"))).toContain("name is required");
     expect(describeError(new ITGlueApiError("x", 503))).toContain("server error");
     expect(describeError(new Error("boom"))).toContain("boom");
+  });
+});
+
+describe("getAllPages", () => {
+  const pageResponse = (ids: number[], nextPage: number | null) =>
+    new Response(
+      JSON.stringify({
+        data: ids.map((id) => ({ id: String(id), type: "organizations", attributes: { name: `Org ${id}` } })),
+        meta: { "total-count": 1500, "current-page": 1, "next-page": nextPage },
+      }),
+      { status: 200 }
+    );
+
+  it("crawls pages until hasMore is false", async () => {
+    const calls: string[] = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async (url: URL | RequestInfo) => {
+      calls.push(String(url));
+      return calls.length === 1 ? pageResponse([1, 2], 2) : pageResponse([3], null);
+    }) as typeof fetch;
+    try {
+      const client = new ITGlueClient({ apiKey: "k", baseUrl: "https://api.example.com" });
+      const result = await client.getAllPages("/organizations");
+      expect(result.items.map((i) => i.id)).toEqual(["1", "2", "3"]);
+      expect(result.scannedAll).toBe(true);
+      expect(calls[0]).toContain("page%5Bnumber%5D=1");
+      expect(calls[1]).toContain("page%5Bnumber%5D=2");
+      expect(calls[0]).toContain("page%5Bsize%5D=1000");
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("stops at maxItems and reports scannedAll=false", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = (async () => pageResponse([1, 2], 2)) as typeof fetch;
+    try {
+      const client = new ITGlueClient({ apiKey: "k", baseUrl: "https://api.example.com" });
+      const result = await client.getAllPages("/organizations", undefined, 2);
+      expect(result.items).toHaveLength(2);
+      expect(result.scannedAll).toBe(false);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
   });
 });

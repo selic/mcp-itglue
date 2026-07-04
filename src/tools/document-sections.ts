@@ -16,10 +16,25 @@ import {
   pageNumberField,
   pageOutputShape,
   pageSizeField,
+  pick,
   responseFormatField,
   structured,
   text,
 } from "./shared.js";
+
+/** Summary fields for list items; content becomes a bounded content_preview. */
+const SECTION_SUMMARY_KEYS = ["id", "resource_type", "sort", "level", "duration", "updated_at"] as const;
+const CONTENT_PREVIEW_CHARS = 300;
+
+function sectionSummaryData(section: DocumentSection): Record<string, unknown> {
+  const data = pick(section, SECTION_SUMMARY_KEYS);
+  if (section.content) {
+    const plain = htmlToText(section.content);
+    data.content_preview =
+      plain.length > CONTENT_PREVIEW_CHARS ? `${plain.slice(0, CONTENT_PREVIEW_CHARS)}…` : plain;
+  }
+  return data;
+}
 
 const SECTION_TYPES = ["Text", "Heading", "Gallery", "Step"] as const;
 
@@ -51,7 +66,8 @@ export function registerDocumentSectionTools(
       title: "List IT Glue Document Sections",
       description:
         "List the sections of a document in position order, with content previews and section IDs " +
-        "(needed for update/delete operations).",
+        "(needed for update/delete operations). List items carry summary fields and a bounded " +
+        "content_preview; use itglue_get_document_section for full content.",
       inputSchema: {
         document_id: z.number().int().positive().describe("The parent document ID"),
         page_number: pageNumberField,
@@ -76,7 +92,7 @@ export function registerDocumentSectionTools(
         if (page.items.length === 0) {
           return structured("This document has no sections.", emptyPageData(args.page_number));
         }
-        const data = pageData(page);
+        const data = pageData({ ...page, items: page.items.map(sectionSummaryData) });
         if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Sections (${page.totalCount} total)`, ""];

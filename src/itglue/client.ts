@@ -197,6 +197,33 @@ export class ITGlueClient {
     };
   }
 
+  /**
+   * Crawl every page of a collection (page[size]=1000) up to maxItems.
+   * Used for client-side name filtering: IT Glue's filter[name] is exact-match
+   * on organizations/flexible-asset-types, treats commas as value separators,
+   * and is ignored outright by the documents relationship endpoint — so
+   * partial matching has to happen here.
+   */
+  async getAllPages<T extends Record<string, unknown>>(
+    path: string,
+    query?: Record<string, string | number>,
+    maxItems = 5000
+  ): Promise<{ items: T[]; scannedAll: boolean }> {
+    const items: T[] = [];
+    let pageNumber = 1;
+    for (;;) {
+      const page = await this.getMany<T>(path, {
+        ...query,
+        "page[number]": pageNumber,
+        "page[size]": Math.min(1000, maxItems),
+      });
+      items.push(...page.items);
+      if (!page.hasMore) return { items, scannedAll: true };
+      if (items.length >= maxItems) return { items: items.slice(0, maxItems), scannedAll: false };
+      pageNumber += 1;
+    }
+  }
+
   async create<T extends Record<string, unknown>>(
     path: string,
     type: string,

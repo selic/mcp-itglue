@@ -11,12 +11,27 @@ import {
   itemOutputShape,
   json,
   pageData,
+  nameMatches,
   pageNumberField,
   pageOutputShape,
   pageSizeField,
+  paginate,
+  pick,
   responseFormatField,
+  scanCapNote,
   structured,
 } from "./shared.js";
+
+/** Summary fields for list items — mirrors what organizationLines renders. */
+const ORG_SUMMARY_KEYS = [
+  "id",
+  "name",
+  "description",
+  "organization_type_name",
+  "organization_status_name",
+  "short_name",
+  "updated_at",
+] as const;
 
 function organizationLines(org: Organization): string[] {
   const lines = [`## ${org.name} (ID: ${org.id})`];
@@ -36,7 +51,8 @@ export function registerOrganizationTools(reg: ToolRegistrar, client: ITGlueClie
       title: "List IT Glue Organizations",
       description:
         "Search and list IT Glue organizations. Use this first to find the organization ID required by document and flexible-asset tools. " +
-        "Filters use exact matching except filter_name, which matches partially. Results are paginated.",
+        "filter_name matches partially and case-insensitively; filter_id is exact. Results are paginated. " +
+        "List items carry summary fields; use itglue_get_organization for the full record.",
       inputSchema: {
         filter_name: z.string().optional().describe("Filter by organization name (partial match)"),
         filter_id: z.number().int().positive().optional().describe("Filter by organization ID"),
@@ -60,26 +76,47 @@ export function registerOrganizationTools(reg: ToolRegistrar, client: ITGlueClie
       response_format: "markdown" | "json";
     }) => {
       try {
-        const page = await client.getMany<Organization>(
-          "/organizations",
-          buildQuery({
-            filters: { name: args.filter_name, id: args.filter_id },
-            pageNumber: args.page_number,
-            pageSize: args.page_size,
-            sort: args.sort,
-          })
-        );
+        // IT Glue's filter[name] is exact-match (and commas split it into a
+        // value list), so partial name search crawls pages and filters here.
+        let page;
+        let scannedAll = true;
+        if (args.filter_name !== undefined) {
+          const scan = await client.getAllPages<Organization>(
+            "/organizations",
+            buildQuery({ filters: { id: args.filter_id }, sort: args.sort })
+          );
+          scannedAll = scan.scannedAll;
+          const matches = scan.items.filter((org) => nameMatches(org, args.filter_name!));
+          const local = paginate(matches, args.page_number, args.page_size);
+          page = { ...local, items: local.items };
+        } else {
+          page = await client.getMany<Organization>(
+            "/organizations",
+            buildQuery({
+              filters: { id: args.filter_id },
+              pageNumber: args.page_number,
+              pageSize: args.page_size,
+              sort: args.sort,
+            })
+          );
+        }
 
         if (page.items.length === 0) {
-          return structured("No organizations found.", emptyPageData(args.page_number));
+          return structured(
+            `No organizations found.${scanCapNote(scannedAll)}`,
+            emptyPageData(args.page_number)
+          );
         }
-        const data = pageData(page);
+        const data = pageData({
+          ...page,
+          items: page.items.map((org) => pick(org, ORG_SUMMARY_KEYS)),
+        });
         if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Organizations (${page.totalCount} total)`, ""];
         for (const org of page.items) lines.push(...organizationLines(org));
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
-        return structured(clip(lines.join("\n")), data);
+        return structured(clip(lines.join("\n") + scanCapNote(scannedAll)), data);
       } catch (error) {
         return failure(error);
       }

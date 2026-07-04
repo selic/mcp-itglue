@@ -11,13 +11,30 @@ import {
   itemOutputShape,
   json,
   pageData,
+  nameMatches,
   pageNumberField,
   pageOutputShape,
   pageSizeField,
+  paginate,
+  pick,
+  previewTraits,
   responseFormatField,
+  scanCapNote,
   structured,
   text,
 } from "./shared.js";
+
+/** Summary fields for list items — mirror the markdown renderings. */
+const TYPE_SUMMARY_KEYS = ["id", "name", "description", "enabled"] as const;
+const ASSET_SUMMARY_KEYS = [
+  "id",
+  "name",
+  "organization_name",
+  "flexible_asset_type_name",
+  "updated_at",
+  "resource_url",
+  "traits",
+] as const;
 
 function traitsBlock(traits: Record<string, unknown> | undefined): string[] {
   const entries = Object.entries(traits ?? {});
@@ -50,7 +67,9 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
       title: "List IT Glue Flexible Asset Types",
       description:
         "List flexible asset types (the schemas MSPs define in IT Glue, e.g. 'Wireless', 'Applications'). " +
-        "Use this to find the type ID required by itglue_list_flexible_assets.",
+        "Use this to find the type ID required by itglue_list_flexible_assets. " +
+        "filter_name matches partially and case-insensitively. " +
+        "List items carry summary fields; use itglue_get_flexible_asset_type for field definitions.",
       inputSchema: {
         filter_name: z.string().optional().describe("Filter by type name"),
         page_number: pageNumberField,
@@ -67,19 +86,31 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
       response_format: "markdown" | "json";
     }) => {
       try {
-        const page = await client.getMany<FlexibleAssetType>(
-          "/flexible_asset_types",
-          buildQuery({
-            filters: { name: args.filter_name },
-            pageNumber: args.page_number,
-            pageSize: args.page_size,
-          })
-        );
+        // filter[name] on this endpoint is exact-match — partial matching is local.
+        let page;
+        let scannedAll = true;
+        if (args.filter_name !== undefined) {
+          const scan = await client.getAllPages<FlexibleAssetType>("/flexible_asset_types");
+          scannedAll = scan.scannedAll;
+          const matches = scan.items.filter((t) => nameMatches(t, args.filter_name!));
+          page = paginate(matches, args.page_number, args.page_size);
+        } else {
+          page = await client.getMany<FlexibleAssetType>(
+            "/flexible_asset_types",
+            buildQuery({ pageNumber: args.page_number, pageSize: args.page_size })
+          );
+        }
 
         if (page.items.length === 0) {
-          return structured("No flexible asset types found.", emptyPageData(args.page_number));
+          return structured(
+            `No flexible asset types found.${scanCapNote(scannedAll)}`,
+            emptyPageData(args.page_number)
+          );
         }
-        const data = pageData(page);
+        const data = pageData({
+          ...page,
+          items: page.items.map((t) => pick(t, TYPE_SUMMARY_KEYS)),
+        });
         if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Flexible Asset Types (${page.totalCount} total)`, ""];
@@ -151,7 +182,9 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
       title: "List IT Glue Flexible Assets",
       description:
         "List flexible assets of a given type, optionally restricted to one organization. " +
-        "The type ID is required by the IT Glue API — find it with itglue_list_flexible_asset_types.",
+        "The type ID is required by the IT Glue API — find it with itglue_list_flexible_asset_types. " +
+        "List items show bounded trait previews (HTML stripped, long values truncated); " +
+        "use itglue_get_flexible_asset for full trait values.",
       inputSchema: {
         flexible_asset_type_id: z.number().int().positive().describe("Flexible asset type ID (required)"),
         organization_id: z.number().int().positive().optional().describe("Restrict to one organization"),
@@ -185,11 +218,18 @@ export function registerFlexibleAssetTools(reg: ToolRegistrar, client: ITGlueCli
         if (page.items.length === 0) {
           return structured("No flexible assets found.", emptyPageData(args.page_number));
         }
-        const data = pageData(page);
+        const previewed = page.items.map((asset) => ({
+          ...asset,
+          traits: previewTraits(asset.traits),
+        }));
+        const data = pageData({
+          ...page,
+          items: previewed.map((asset) => pick(asset, ASSET_SUMMARY_KEYS)),
+        });
         if (args.response_format === "json") return structured(clip(json(data)), data);
 
         const lines = [`# Flexible Assets (${page.totalCount} total)`, ""];
-        for (const asset of page.items) lines.push(assetSummary(asset));
+        for (const asset of previewed) lines.push(assetSummary(asset));
         lines.push(pageFooter(page.totalCount, page.pageNumber, page.hasMore));
         return structured(clip(lines.join("\n")), data);
       } catch (error) {

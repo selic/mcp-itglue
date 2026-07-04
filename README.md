@@ -207,6 +207,7 @@ CLI flags `--transport`, `--port`, `--region`, `--base-url` override the environ
 - IT Glue rate limit: 3000 requests / 5 minutes per key.
 - The IT Glue documents API is only partially documented; document/section endpoints follow observed API behavior.
 - Flexible-asset trait updates replace the whole traits object — the update tool's description warns the model to send all traits back.
+- List tools return summary fields per item (in both text and `structuredContent`) so default page sizes stay within client token limits; the `itglue_get_*` tools return the complete record.
 - IT Glue has no user impersonation: a given API key always acts as itself. RBAC here controls what *tool calls* a session may make; BYOK delegates to IT Glue's own key permissions.
 
 ## Development
