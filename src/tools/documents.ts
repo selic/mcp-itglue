@@ -11,13 +11,27 @@ import {
   failure,
   itemOutputShape,
   json,
+  nameMatches,
   pageNumberField,
   pageOutputShape,
   pageSizeField,
+  paginate,
+  pick,
   responseFormatField,
+  scanCapNote,
   structured,
   text,
 } from "./shared.js";
+
+/** Summary fields for list items — mirrors what documentSummary renders. */
+const DOC_SUMMARY_KEYS = [
+  "id",
+  "name",
+  "organization_name",
+  "published",
+  "updated_at",
+  "resource_url",
+] as const;
 
 function documentSummary(doc: Document): string {
   const lines = [`## ${doc.name} (ID: ${doc.id})`];
@@ -39,8 +53,9 @@ export function registerDocumentTools(
       name: "itglue_list_documents",
       title: "List IT Glue Documents",
       description:
-        "List documents in an organization, including documents nested in folders. Returns metadata only — " +
-        "use itglue_get_document for content. The endpoint returns root-level documents by default, so this tool " +
+        "List documents in an organization, including documents nested in folders. Returns summary metadata only — " +
+        "use itglue_get_document for content and the full record. filter_name matches partially and case-insensitively. " +
+        "The endpoint returns root-level documents by default, so this tool " +
         "issues a second query for folder-nested documents and merges the results (up to 2x page_size items).",
       inputSchema: {
         organization_id: z.number().int().positive().describe("Organization ID to list documents for"),
@@ -65,35 +80,57 @@ export function registerDocumentTools(
     }) => {
       try {
         const path = `/organizations/${args.organization_id}/relationships/documents`;
-        const query = buildQuery({
-          filters: { name: args.filter_name, id: args.filter_id },
-          pageNumber: args.page_number,
-          pageSize: args.page_size,
-          sort: args.sort,
-        });
+        const dedupe = (docs: Document[]): Document[] => {
+          const seen = new Set<string>();
+          return docs.filter((doc) => !seen.has(doc.id) && (seen.add(doc.id), true));
+        };
 
-        const rootPage = await client.getMany<Document>(path, query);
-        const folderPage = await client.getMany<Document>(path, {
-          ...query,
-          "filter[document-folder-id][ne]": "null",
-        });
-
-        const seen = new Set<string>();
-        const documents: Document[] = [];
-        for (const doc of [...rootPage.items, ...folderPage.items]) {
-          if (!seen.has(doc.id)) {
-            seen.add(doc.id);
-            documents.push(doc);
-          }
+        // The documents endpoint IGNORES filter[name], so name search crawls
+        // both query variants (root + folder-nested) and filters locally.
+        let documents: Document[];
+        let totalCount: number;
+        let hasMore: boolean;
+        let scannedAll = true;
+        if (args.filter_name !== undefined) {
+          const query = buildQuery({ filters: { id: args.filter_id }, sort: args.sort });
+          const rootScan = await client.getAllPages<Document>(path, query);
+          const folderScan = await client.getAllPages<Document>(path, {
+            ...query,
+            "filter[document-folder-id][ne]": "null",
+          });
+          scannedAll = rootScan.scannedAll && folderScan.scannedAll;
+          const matches = dedupe([...rootScan.items, ...folderScan.items]).filter((doc) =>
+            nameMatches(doc, args.filter_name!)
+          );
+          const local = paginate(matches, args.page_number, args.page_size);
+          documents = local.items;
+          totalCount = local.totalCount;
+          hasMore = local.hasMore;
+        } else {
+          const query = buildQuery({
+            filters: { id: args.filter_id },
+            pageNumber: args.page_number,
+            pageSize: args.page_size,
+            sort: args.sort,
+          });
+          const rootPage = await client.getMany<Document>(path, query);
+          const folderPage = await client.getMany<Document>(path, {
+            ...query,
+            "filter[document-folder-id][ne]": "null",
+          });
+          documents = dedupe([...rootPage.items, ...folderPage.items]);
+          totalCount = rootPage.totalCount + folderPage.totalCount;
+          hasMore = rootPage.hasMore || folderPage.hasMore;
         }
-        const totalCount = rootPage.totalCount + folderPage.totalCount;
-        const hasMore = rootPage.hasMore || folderPage.hasMore;
 
         if (documents.length === 0) {
-          return structured("No documents found.", emptyPageData(args.page_number));
+          return structured(
+            `No documents found.${scanCapNote(scannedAll)}`,
+            emptyPageData(args.page_number)
+          );
         }
         const data = {
-          items: documents,
+          items: documents.map((doc) => pick(doc, DOC_SUMMARY_KEYS)),
           total_count: totalCount,
           page_number: args.page_number,
           has_more: hasMore,
@@ -105,7 +142,7 @@ export function registerDocumentTools(
         const lines = [`# Documents (${totalCount} total)`, ""];
         for (const doc of documents) lines.push(documentSummary(doc));
         lines.push(pageFooter(totalCount, args.page_number, hasMore));
-        return structured(clip(lines.join("\n")), data);
+        return structured(clip(lines.join("\n") + scanCapNote(scannedAll)), data);
       } catch (error) {
         return failure(error);
       }
