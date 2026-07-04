@@ -3,7 +3,7 @@
 import { z } from "zod";
 import type { ToolRegistrar } from "../auth/roles.js";
 import { buildQuery, bulkDeletePayload, type ITGlueClient } from "../itglue/client.js";
-import type { Document, DocumentSection } from "../itglue/types.js";
+import type { Document, DocumentFolder, DocumentSection } from "../itglue/types.js";
 import { clip, htmlToText, pageFooter, sectionKind } from "../format.js";
 import { queueDocumentRefresh, type IndexerDeps } from "../vector/indexer.js";
 import {
@@ -39,6 +39,28 @@ function documentSummary(doc: Document): string {
   lines.push(`- **Published**: ${doc.published ? "Yes" : "No"}`);
   if (doc.updated_at) lines.push(`- **Updated**: ${doc.updated_at}`);
   if (doc.resource_url) lines.push(`- **URL**: ${doc.resource_url}`);
+  lines.push("");
+  return lines.join("\n");
+}
+
+/** Summary fields for folder list items — mirrors what folderSummary renders. */
+const FOLDER_SUMMARY_KEYS = [
+  "id",
+  "name",
+  "parent_id",
+  "documents_count",
+  "restricted",
+  "updated_at",
+  "resource_url",
+] as const;
+
+function folderSummary(folder: DocumentFolder): string {
+  const lines = [`## ${folder.name} (ID: ${folder.id})`];
+  lines.push(`- **Parent folder**: ${folder.parent_id ?? "none (top level)"}`);
+  if (folder.documents_count !== undefined) lines.push(`- **Documents**: ${folder.documents_count}`);
+  if (folder.restricted) lines.push(`- **Restricted**: Yes`);
+  if (folder.updated_at) lines.push(`- **Updated**: ${folder.updated_at}`);
+  if (folder.resource_url) lines.push(`- **URL**: ${folder.resource_url}`);
   lines.push("");
   return lines.join("\n");
 }
@@ -141,6 +163,93 @@ export function registerDocumentTools(
 
         const lines = [`# Documents (${totalCount} total)`, ""];
         for (const doc of documents) lines.push(documentSummary(doc));
+        lines.push(pageFooter(totalCount, args.page_number, hasMore));
+        return structured(clip(lines.join("\n") + scanCapNote(scannedAll)), data);
+      } catch (error) {
+        return failure(error);
+      }
+    }
+  );
+
+  reg.register(
+    {
+      name: "itglue_list_document_folders",
+      title: "List IT Glue Document Folders",
+      description:
+        "List the document folders (directories) in an organization, including nested folders. Returns summary " +
+        "metadata only (name, parent folder, document count). Use this to discover a document_folder_id for " +
+        "itglue_create_document, or to browse an organization's document tree. filter_name matches partially and " +
+        "case-insensitively; parent_id is the number in a folder's URL. A folder with parent_id null is top-level.",
+      inputSchema: {
+        organization_id: z.number().int().positive().describe("Organization ID to list folders for"),
+        filter_name: z.string().optional().describe("Filter by folder name (partial match)"),
+        filter_id: z.number().int().positive().optional().describe("Filter by folder ID"),
+        sort: z.string().optional().describe('Sort field (e.g. "name", "-updated_at")'),
+        page_number: pageNumberField,
+        page_size: pageSizeField,
+        response_format: responseFormatField,
+      },
+      outputSchema: pageOutputShape,
+      annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true },
+    },
+    async (args: {
+      organization_id: number;
+      filter_name?: string;
+      filter_id?: number;
+      sort?: string;
+      page_number: number;
+      page_size: number;
+      response_format: "markdown" | "json";
+    }) => {
+      try {
+        const path = `/organizations/${args.organization_id}/relationships/document_folders`;
+
+        let folders: DocumentFolder[];
+        let totalCount: number;
+        let hasMore: boolean;
+        let scannedAll = true;
+        if (args.filter_name !== undefined) {
+          // The endpoint ignores filter[name], so crawl all folders and filter locally.
+          const scan = await client.getAllPages<DocumentFolder>(
+            path,
+            buildQuery({ filters: { id: args.filter_id }, sort: args.sort })
+          );
+          scannedAll = scan.scannedAll;
+          const matches = scan.items.filter((folder) => nameMatches(folder, args.filter_name!));
+          const local = paginate(matches, args.page_number, args.page_size);
+          folders = local.items;
+          totalCount = local.totalCount;
+          hasMore = local.hasMore;
+        } else {
+          const page = await client.getMany<DocumentFolder>(
+            path,
+            buildQuery({
+              filters: { id: args.filter_id },
+              pageNumber: args.page_number,
+              pageSize: args.page_size,
+              sort: args.sort,
+            })
+          );
+          folders = page.items;
+          totalCount = page.totalCount;
+          hasMore = page.hasMore;
+        }
+
+        if (folders.length === 0) {
+          return structured(`No document folders found.${scanCapNote(scannedAll)}`, emptyPageData(args.page_number));
+        }
+        const data = {
+          items: folders.map((folder) => pick(folder, FOLDER_SUMMARY_KEYS)),
+          total_count: totalCount,
+          page_number: args.page_number,
+          has_more: hasMore,
+        };
+        if (args.response_format === "json") {
+          return structured(clip(json(data)), data);
+        }
+
+        const lines = [`# Document folders (${totalCount} total)`, ""];
+        for (const folder of folders) lines.push(folderSummary(folder));
         lines.push(pageFooter(totalCount, args.page_number, hasMore));
         return structured(clip(lines.join("\n") + scanCapNote(scannedAll)), data);
       } catch (error) {

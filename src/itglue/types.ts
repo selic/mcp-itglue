@@ -54,6 +54,23 @@ export interface Document extends Record<string, unknown> {
   updated_at?: string;
 }
 
+export interface DocumentFolder extends Record<string, unknown> {
+  id: string;
+  type: string;
+  name: string;
+  organization_id?: number;
+  organization_name?: string | null;
+  /** Parent folder id; null/absent for a top-level folder. */
+  parent_id?: number | null;
+  /** Ids of every ancestor folder, root-first. */
+  ancestor_ids?: number[] | null;
+  documents_count?: number;
+  restricted?: boolean;
+  resource_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface DocumentSection extends Record<string, unknown> {
   id: string;
   type: string;

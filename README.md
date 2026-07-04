@@ -140,6 +140,7 @@ With BYOK enabled the server-wide `ITGLUE_API_KEY` becomes optional: sessions wi
 |---|---|
 | `itglue_list_organizations`, `itglue_get_organization` | read |
 | `itglue_list_documents`, `itglue_get_document` | read |
+| `itglue_list_document_folders` | read |
 | `itglue_list_document_sections`, `itglue_get_document_section` | read |
 | `itglue_list_flexible_asset_types`, `itglue_get_flexible_asset_type` | read |
 | `itglue_list_flexible_assets`, `itglue_get_flexible_asset` | read |
