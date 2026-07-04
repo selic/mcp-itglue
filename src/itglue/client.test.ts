@@ -39,6 +39,23 @@ describe("toResourcePayload", () => {
   it("includes the id when provided", () => {
     expect(toResourcePayload("documents", { name: "X" }, "9").data.id).toBe("9");
   });
+
+  it("sends document_folder_id as document-folder-id when placing in a folder", () => {
+    expect(
+      toResourcePayload("documents", { organization_id: 1, name: "X", document_folder_id: 456590 })
+    ).toEqual({
+      data: { type: "documents", attributes: { "organization-id": 1, name: "X", "document-folder-id": 456590 } },
+    });
+  });
+
+  it("omits document-folder-id when no folder is given (root placement)", () => {
+    const attrs = toResourcePayload("documents", {
+      organization_id: 1,
+      name: "X",
+      document_folder_id: undefined,
+    }).data.attributes;
+    expect(attrs).not.toHaveProperty("document-folder-id");
+  });
 });
 
 describe("buildQuery", () => {
