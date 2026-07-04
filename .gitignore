@@ -3,6 +3,7 @@ docs/
 .serena/
 .claude/
 .playwright-mcp/
+.mcp.json
 
 node_modules/
 dist/
