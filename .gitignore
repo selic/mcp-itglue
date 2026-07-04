@@ -2,6 +2,7 @@
 docs/
 .serena/
 .claude/
+.playwright-mcp/
 
 node_modules/
 dist/
