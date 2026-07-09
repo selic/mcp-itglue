@@ -24,3 +24,4 @@ MCP server for the IT Glue API. TypeScript, ESM, Node ≥20. Transports: stdio (
 - All log output uses `console.error` (stdout is reserved for the stdio transport)
 - Never log token values or API keys — labels and key-hash prefixes only
 - IT Glue documents API is partially undocumented: list-documents needs the second folder query (`filter[document-folder-id][ne]=null`); flexible-asset trait updates replace the whole traits object
+- Attachments (images/files) upload as **base64 inside ordinary `application/vnd.api+json` JSON** — no multipart — via `POST /:resource/:id/relationships/attachments` with a nested `attachment: { content, file_name }` attribute; delete is a bulk body on the collection endpoint, not id-in-path (`src/tools/attachments.ts`)

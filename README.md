@@ -7,6 +7,7 @@ An MCP ([Model Context Protocol](https://modelcontextprotocol.io)) server for th
 
 - **Documents & sections** — list, read, create, update, publish, delete
 - **Flexible assets** — browse asset types and their fields, list/read/create/update/delete assets
+- **Attachments & images** — attach an image/file to any record from base64, a URL, or a local path; list and delete attachments
 - **Semantic vector search** — "how do I remove a backup agent" finds the Veeam decommissioning runbook, even when the words don't match (OpenAI or Azure OpenAI embeddings, local JSON index)
 - **Role-based access control** — viewer / editor / admin bearer tokens decide which tools each session can even see
 - **Bring your own key** — clients may supply their own IT Glue API key per session, so IT Glue's own permissions apply
@@ -144,14 +145,17 @@ With BYOK enabled the server-wide `ITGLUE_API_KEY` becomes optional: sessions wi
 | `itglue_list_document_sections`, `itglue_get_document_section` | read |
 | `itglue_list_flexible_asset_types`, `itglue_get_flexible_asset_type` | read |
 | `itglue_list_flexible_assets`, `itglue_get_flexible_asset` | read |
+| `itglue_list_attachments` | read |
 | `itglue_vector_search`, `itglue_vector_index_status` | read |
 | `itglue_create_document`, `itglue_update_document`, `itglue_publish_document` | write |
 | `itglue_create_document_section`, `itglue_update_document_section` | write |
 | `itglue_delete_document_section` † | write |
 | `itglue_create_flexible_asset`, `itglue_update_flexible_asset` | write |
+| `itglue_create_attachment` | write |
 | `itglue_build_vector_index` | write |
 | `itglue_delete_documents` | destructive |
 | `itglue_delete_flexible_asset` | destructive |
+| `itglue_delete_attachment` | destructive |
 
 Viewer = read. Editor = read + write. Admin = everything.
 † Permanent, but editor-tier: editors need it to restructure documents and can already blank section content via update.

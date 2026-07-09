@@ -151,7 +151,9 @@ export function registerDocumentSectionTools(
       title: "Create IT Glue Document Section",
       description:
         "Add a section to a document. Types: Text (HTML content), Heading (content = heading text, level 1-6 required), " +
-        "Gallery (no content), Step (HTML content, optional duration in minutes).",
+        "Gallery (no content), Step (HTML content, optional duration in minutes). " +
+        "Text/Step HTML may include inline images via <img src=\"https://…\"> (rendering depends on IT Glue's " +
+        "sanitization); to attach an image file to the document instead, use itglue_create_attachment.",
       inputSchema: {
         document_id: z.number().int().positive().describe("The parent document ID"),
         section_type: z.enum(SECTION_TYPES).describe("Section type"),
@@ -205,7 +207,7 @@ export function registerDocumentSectionTools(
       title: "Update IT Glue Document Section",
       description:
         "Update a section's content, heading level, duration, or position. Only provided fields change; " +
-        "the section type cannot be changed.",
+        "the section type cannot be changed. Text/Step content may embed inline images via <img src=\"…\">.",
       inputSchema: {
         document_id: z.number().int().positive().describe("The parent document ID"),
         section_id: z.number().int().positive().describe("The section ID to update"),

@@ -21,9 +21,20 @@ const NAMED_ENTITIES: Record<string, string> = {
   trade: "™",
 };
 
+/** Extract an attribute's value from a raw HTML tag string, case-insensitively. */
+function tagAttr(tag: string, name: string): string {
+  const match = tag.match(new RegExp(`${name}\\s*=\\s*["']([^"']*)["']`, "i"));
+  return match?.[1] ?? "";
+}
+
 /** Convert an HTML fragment to readable plain text (markdown-ish). */
 export function htmlToText(html: string): string {
   return html
+    .replace(/<img\b[^>]*>/gi, (tag) => {
+      const src = tagAttr(tag, "src");
+      if (!src) return "";
+      return `![${tagAttr(tag, "alt")}](${src})`;
+    })
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/(?:p|div|tr)>/gi, "\n\n")
     .replace(/<\/li>/gi, "\n")

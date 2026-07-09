@@ -15,6 +15,14 @@ describe("htmlToText", () => {
   it("collapses excessive blank lines", () => {
     expect(htmlToText("<p>a</p><p></p><p>b</p>")).toBe("a\n\nb");
   });
+
+  it("converts <img> to markdown image syntax instead of dropping it", () => {
+    expect(htmlToText('<p>See <img src="https://x/y.png" alt="diagram"> here</p>')).toBe(
+      "See ![diagram](https://x/y.png) here"
+    );
+    expect(htmlToText('<img src="a.png">')).toBe("![](a.png)");
+    expect(htmlToText("<img>")).toBe("");
+  });
 });
 
 describe("clip", () => {
