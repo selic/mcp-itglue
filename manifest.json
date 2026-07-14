@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "mcp-itglue",
   "display_name": "IT Glue",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "IT Glue for MSPs — documents, flexible assets, and semantic search over your documentation",
   "long_description": "MCP server for the IT Glue API. Browse organizations, read and write documents and flexible assets, and (with an OpenAI API key) run semantic vector search over your documentation — \"how do I remove a backup agent\" finds the right runbook even when the words don't match.",
   "author": {
@@ -27,6 +27,7 @@
         "ITGLUE_REGION": "${user_config.itglue_region}",
         "ITGLUE_BASE_URL": "${user_config.itglue_base_url}",
         "OPENAI_API_KEY": "${user_config.openai_api_key}",
+        "ITGLUE_ADVANCED_TOOLSET": "${user_config.itglue_advanced_toolset}",
         "VECTOR_INDEX_PATH": "${HOME}/.mcp-itglue/vector-index.json"
       }
     }
@@ -58,6 +59,13 @@
       "description": "Enables semantic vector search tools; leave empty to disable",
       "required": false,
       "sensitive": true
+    },
+    "itglue_advanced_toolset": {
+      "type": "boolean",
+      "title": "Advanced toolset (optional)",
+      "description": "Adds itglue_get / itglue_find_endpoint — read-only access to API endpoints the curated tools don't wrap. Password resources stay blocked.",
+      "default": false,
+      "required": false
     }
   },
   "compatibility": {

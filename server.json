@@ -3,7 +3,7 @@
   "name": "io.github.selic/mcp-itglue",
   "title": "IT Glue",
   "description": "IT Glue MCP server for MSPs — documents, flexible assets, semantic vector search, RBAC, and BYOK",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "repository": {
     "url": "https://github.com/selic/mcp-itglue",
     "source": "github"
@@ -14,7 +14,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "mcp-itglue",
-      "version": "0.3.0",
+      "version": "0.4.0",
       "runtimeHint": "npx",
       "transport": {
         "type": "stdio"
@@ -63,6 +63,13 @@
           "isRequired": false,
           "isSecret": false,
           "default": "text-embedding-3-small"
+        },
+        {
+          "name": "ITGLUE_ADVANCED_TOOLSET",
+          "description": "true/1 registers the advanced toolset (itglue_get, itglue_find_endpoint) — an opt-in read-only escape hatch; password resources stay blocked",
+          "isRequired": false,
+          "isSecret": false,
+          "default": "false"
         },
         {
           "name": "VECTOR_INDEX_PATH",
