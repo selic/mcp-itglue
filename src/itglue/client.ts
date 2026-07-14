@@ -224,6 +224,18 @@ export class ITGlueClient {
     }
   }
 
+  /**
+   * Read-only GET passthrough for the advanced toolset. Verb-locked to GET —
+   * the universal tool must never be able to mutate. Returns the raw JSON:API
+   * document (kebab-case on the wire); callers convert via fromResource.
+   */
+  async rawGet(
+    path: string,
+    query?: Record<string, string | number>
+  ): Promise<JsonApiDocument | null> {
+    return this.request("GET", path, query);
+  }
+
   async create<T extends Record<string, unknown>>(
     path: string,
     type: string,

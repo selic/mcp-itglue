@@ -16,6 +16,11 @@
  *   ALLOWED_ORIGINS       Comma-separated browser origins additionally allowed on
  *                         /mcp (e.g. https://app.example.com). Localhost origins
  *                         and requests without an Origin header always pass.
+ *   ITGLUE_ADVANCED_TOOLSET
+ *                         true|1 registers the advanced toolset (itglue_get /
+ *                         itglue_find_endpoint) — also via the --advanced flag.
+ *                         Off by default; the tools are an escape hatch for
+ *                         API surface the curated tools don't wrap.
  *   ITGLUE_WEBHOOK_SECRET Shared secret for /webhook/itglue (HMAC) and /index/refresh
  *   VECTOR_INDEX_PATH     Path of the persisted vector index (default: ./vector-index.json)
  *   OPENAI_API_KEY        Enables vector search (OpenAI embeddings)
@@ -45,6 +50,8 @@ export interface ServerConfig {
   clientKeyMode: ClientKeyMode;
   /** Browser origins additionally allowed on /mcp (localhost always passes). */
   allowedOrigins: string[];
+  /** Register the advanced toolset (itglue_get / itglue_find_endpoint). */
+  advancedToolset: boolean;
   webhookSecret: string | undefined;
   vectorIndexPath: string;
 }
@@ -128,6 +135,9 @@ export function loadConfig(
     .map((origin) => origin.trim().replace(/\/+$/, ""))
     .filter((origin) => origin.length > 0);
 
+  const advancedEnv = (cleanEnv(env, "ITGLUE_ADVANCED_TOOLSET") || "").toLowerCase();
+  const advancedToolset = argv.includes("--advanced") || advancedEnv === "true" || advancedEnv === "1";
+
   return {
     transport,
     port,
@@ -135,6 +145,7 @@ export function loadConfig(
     apiKey,
     clientKeyMode,
     allowedOrigins,
+    advancedToolset,
     webhookSecret: cleanEnv(env, "ITGLUE_WEBHOOK_SECRET"),
     vectorIndexPath: cleanEnv(env, "VECTOR_INDEX_PATH") || "./vector-index.json",
   };

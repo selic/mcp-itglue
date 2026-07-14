@@ -17,6 +17,7 @@ MCP server for the IT Glue API. TypeScript, ESM, Node ≥20. Transports: stdio (
 - `src/server.ts` — `createServer(config, {role, label, apiKey})`, one McpServer per session
 - `src/http/app.ts` — Express app: `/mcp` (sessions bound to principal = role + label + SHA-256 of any client key; mismatch → 403), `/health`, `/webhook/itglue` (HMAC), `/index/refresh` (shared secret or admin token). BYOK policy via `CLIENT_ITGLUE_KEYS` (disabled | with-token | open)
 - `src/vector/` — embeddings (OpenAI/AzureOpenAI), JSON-file index with cosine search, `indexer.ts` shared by the build tool, webhook, manual refresh, and post-write self-refresh (`queueDocumentRefresh`)
+- `src/tools/advanced.ts` — opt-in escape hatch (`ITGLUE_ADVANCED_TOOLSET=true` / `--advanced`, off by default): `itglue_get` (read-only GET on any path via the verb-locked `ITGlueClient.rawGet`; password paths and `show_password` params are hard-blocked so credentials never enter model context) and `itglue_find_endpoint` (lexical search over `src/reference/itglue-endpoints.ts`). The catalog is **hand-maintained** (IT Glue has no OpenAPI spec); the search functions are kept in sync with mcp-connectwise-psa's `src/tools/advanced.ts`
 
 ## Conventions
 

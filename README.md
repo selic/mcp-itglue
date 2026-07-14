@@ -156,9 +156,11 @@ With BYOK enabled the server-wide `ITGLUE_API_KEY` becomes optional: sessions wi
 | `itglue_delete_documents` | destructive |
 | `itglue_delete_flexible_asset` | destructive |
 | `itglue_delete_attachment` | destructive |
+| `itglue_find_endpoint`, `itglue_get` ‡ | read |
 
 Viewer = read. Editor = read + write. Admin = everything.
 † Permanent, but editor-tier: editors need it to restructure documents and can already blank section content via update.
+‡ Advanced toolset (opt-in, off by default): `itglue_get` is a read-only GET passthrough for any API path the curated tools don't wrap, and `itglue_find_endpoint` searches a curated endpoint catalog. Enable with `ITGLUE_ADVANCED_TOOLSET=true` or `--advanced`. Password resources (`/passwords`) are hard-blocked — credential values never reach the model.
 
 Vector tools appear only when an embedding provider is configured.
 
@@ -199,13 +201,14 @@ The index stays fresh three ways:
 | `MCP_TOKENS_VIEWER/EDITOR/ADMIN` | — | `label:token,label:token` per role |
 | `CLIENT_ITGLUE_KEYS` | `with-token` | BYOK policy: `disabled`, `with-token`, `open` |
 | `ALLOWED_ORIGINS` | — | Extra browser origins allowed on `/mcp` (comma-separated). Requests without an `Origin` header and localhost origins always pass; other browser origins are rejected with 403 |
+| `ITGLUE_ADVANCED_TOOLSET` | `false` | `true`/`1` registers the advanced toolset (`itglue_get`, `itglue_find_endpoint`) |
 | `ITGLUE_WEBHOOK_SECRET` | — | Webhook signature + `/index/refresh` secret |
 | `VECTOR_INDEX_PATH` | `./vector-index.json` | Vector index file |
 | `OPENAI_API_KEY` | — | Enables vector search (OpenAI) |
 | `AZURE_OPENAI_API_KEY` / `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_VERSION` | — | Enables vector search (Azure OpenAI) |
 | `EMBEDDING_MODEL` | `text-embedding-3-small` | Embedding model / Azure deployment |
 
-CLI flags `--transport`, `--port`, `--region`, `--base-url` override the environment. Run `mcp-itglue --help` for details.
+CLI flags `--transport`, `--port`, `--region`, `--base-url`, `--advanced` override the environment. Run `mcp-itglue --help` for details.
 
 ## Notes & limits
 

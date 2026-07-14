@@ -8,6 +8,8 @@ export interface JsonApiResource {
 
 export interface JsonApiDocument {
   data: JsonApiResource | JsonApiResource[];
+  /** Sideloaded related resources (present when the query used `include`). */
+  included?: JsonApiResource[];
   meta?: {
     "current-page"?: number;
     "next-page"?: number | null;
