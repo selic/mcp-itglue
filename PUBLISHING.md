@@ -25,12 +25,12 @@ brew install mcp-publisher
 Then, from the repo root:
 
 ```bash
-mcp-publisher login github     # opens a device-code flow; authorizes the io.github.selic/* namespace
+mcp-publisher login github     # opens a device-code flow; authorizes the io.github.mspstack/* namespace
 mcp-publisher publish          # reads ./server.json
 ```
 
 The npm package must prove namespace ownership: `package.json` contains the matching
-`mcpName` field (`io.github.selic/mcp-itglue`) which the registry checks against the
+`mcpName` field (`io.github.mspstack/mcp-itglue`) which the registry checks against the
 published tarball.
 
 ## 3. Claude Desktop bundle (.mcpb)

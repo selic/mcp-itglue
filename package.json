@@ -1,7 +1,7 @@
 {
   "name": "mcp-itglue",
   "version": "0.4.0",
-  "mcpName": "io.github.selic/mcp-itglue",
+  "mcpName": "io.github.mspstack/mcp-itglue",
   "description": "MCP server for the IT Glue API — documents, flexible assets, semantic vector search, role-based access control, and bring-your-own-key support",
   "type": "module",
   "main": "dist/index.js",
@@ -42,11 +42,11 @@
   "author": "Eugene Samotija (selic) <es@defency.net> (https://defency.net)",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/selic/mcp-itglue.git"
+    "url": "git+https://github.com/mspstack/mcp-itglue.git"
   },
-  "homepage": "https://github.com/selic/mcp-itglue#readme",
+  "homepage": "https://github.com/mspstack/mcp-itglue#readme",
   "bugs": {
-    "url": "https://github.com/selic/mcp-itglue/issues"
+    "url": "https://github.com/mspstack/mcp-itglue/issues"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",

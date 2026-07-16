@@ -40,7 +40,7 @@ Claude Code one-liner:
 claude mcp add itglue --env ITGLUE_API_KEY=ITG.xxxx -- npx -y mcp-itglue
 ```
 
-Claude Desktop users can instead grab `mcp-itglue.mcpb` from the [latest release](https://github.com/selic/mcp-itglue/releases/latest) — open it with Claude Desktop and fill in the API key when prompted.
+Claude Desktop users can instead grab `mcp-itglue.mcpb` from the [latest release](https://github.com/mspstack/mcp-itglue/releases/latest) — open it with Claude Desktop and fill in the API key when prompted.
 
 stdio always runs with the full tool surface — it is a local, single-user transport using your own key.
 
@@ -51,7 +51,7 @@ The container image defaults to the HTTP transport (for [shared deployments](#ht
 ```bash
 docker run --rm -p 3000:3000 \
   -e ITGLUE_API_KEY=ITG.xxxx \
-  ghcr.io/selic/mcp-itglue
+  ghcr.io/mspstack/mcp-itglue
 ```
 
 For local stdio use under Docker:
@@ -61,7 +61,7 @@ For local stdio use under Docker:
   "mcpServers": {
     "itglue": {
       "command": "docker",
-      "args": ["run", "-i", "--rm", "-e", "ITGLUE_API_KEY", "ghcr.io/selic/mcp-itglue", "--transport", "stdio"],
+      "args": ["run", "-i", "--rm", "-e", "ITGLUE_API_KEY", "ghcr.io/mspstack/mcp-itglue", "--transport", "stdio"],
       "env": { "ITGLUE_API_KEY": "ITG.xxxx" }
     }
   }
@@ -71,7 +71,7 @@ For local stdio use under Docker:
 ### From source
 
 ```bash
-git clone https://github.com/selic/mcp-itglue.git && cd mcp-itglue
+git clone https://github.com/mspstack/mcp-itglue.git && cd mcp-itglue
 npm install && npm run build
 ITGLUE_API_KEY=ITG.xxxx node dist/index.js
 ```
@@ -91,7 +91,7 @@ Or with Docker:
 ```bash
 docker run --rm -p 3000:3000 \
   -e ITGLUE_API_KEY -e MCP_TOKENS_VIEWER -e MCP_TOKENS_EDITOR -e MCP_TOKENS_ADMIN \
-  ghcr.io/selic/mcp-itglue
+  ghcr.io/mspstack/mcp-itglue
 ```
 
 Endpoints:

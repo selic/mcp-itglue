@@ -1,14 +1,14 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.selic/mcp-itglue",
+  "name": "io.github.mspstack/mcp-itglue",
   "title": "IT Glue",
   "description": "IT Glue MCP server for MSPs — documents, flexible assets, semantic vector search, RBAC, and BYOK",
   "version": "0.4.0",
   "repository": {
-    "url": "https://github.com/selic/mcp-itglue",
+    "url": "https://github.com/mspstack/mcp-itglue",
     "source": "github"
   },
-  "websiteUrl": "https://github.com/selic/mcp-itglue#readme",
+  "websiteUrl": "https://github.com/mspstack/mcp-itglue#readme",
   "packages": [
     {
       "registryType": "npm",
